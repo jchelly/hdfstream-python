@@ -1,0 +1,6 @@
+numpy
+requests
+msgpack
+msgpack-numpy
+tqdm
+pytest
