@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hdfstream"
+version = "0.0.10"
+authors = [
+  { name="John Helly", email="j.c.helly@durham.ac.uk" },
+]
+description = "Python client for HDF5/messagepack streaming service."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "requests",
+    "msgpack",
+    "msgpack-numpy",
+    "tqdm",
+    "pytest"
+]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]

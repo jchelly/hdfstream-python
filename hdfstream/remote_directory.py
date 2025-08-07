@@ -1,0 +1,240 @@
+#!/bin/env python
+
+import collections.abc
+
+from hdfstream.connection import Connection
+from hdfstream.remote_file import RemoteFile
+from hdfstream.remote_group import RemoteGroup
+from hdfstream.remote_dataset import RemoteDataset
+from hdfstream.defaults import *
+from hdfstream.exceptions import HDFStreamRequestError
+
+
+def _path_components(path):
+    return [c for c in path.split("/") if c]
+
+
+def _split_path(path):
+    """
+    Split a path into a prefix and remainder on the first slash.
+    Leading and trailing slashes are ignored and consecutive slashes are
+    treated as one.
+    """
+    components = _path_components(path)
+    if len(components) > 1:
+        prefix = components[0]
+        remainder = "/".join(components[1:])
+    else:
+        prefix = None
+        remainder = components[0]
+    return prefix, remainder
+
+
+class RemoteDirectory(collections.abc.Mapping):
+    """
+    Object representing a virtual directory on the remote server
+
+    Parameters:
+
+    server: URL of the server (e.g. https://localhost:8443/hdfstream)
+    name: path of the remote directory to open
+    user: user name to log in with
+    password: user's password, or None to prompt
+
+    The remaining parameters are used to implement recursive lazy loading and
+    should not normally need to be set by the user:
+
+    data: msgpack encoded description of directory and maybe subdirectories
+    max_depth: maximum recursion depth for requests to the server
+    data_size_limit: maximum size of dataset body to download with metadata
+    lazy_load: if True, don't request directory data until it is needed
+    connection: Connection object to use to send requests
+    """
+    def __init__(self, server, name="/", user=None, password=None, data=None,
+                 max_depth=max_depth_default, data_size_limit=data_size_limit_default,
+                 lazy_load=False, connection=None):
+
+        # Remove any trailing slashes from the directory name
+        name = name.rstrip("/")
+
+        # Set up a new session if necessary. May need to ask for password.
+        if connection is None:
+            connection = Connection.new(server, user, password)
+        self.connection = connection
+
+        # Store parameters
+        self.data_size_limit = data_size_limit
+        self.max_depth = max_depth
+        self.name = name
+        self.unpacked = False
+        self._files = {}
+        self._directories = {}
+
+        # If msgpack data was supplied, decode it. If not, we'll wait until
+        # we actually need the data before we request it from the server.
+        if data is not None:
+            self.unpack(data)
+
+        # If the class was explicitly instantiated by the user (and not by a
+        # recursive unpack() call) then we should always contact the server so
+        # that we immediately detect incorrect paths.
+        if lazy_load==False and not(self.unpacked):
+            self.load()
+
+    def load(self):
+        """
+        Request the msgpack representation of this directory from the server
+        """
+        if not self.unpacked:
+            data = self.connection.request_path(self.name)
+            self.unpack(data)
+
+    def unpack(self, data):
+        """
+        Decode the msgpack representation of this directory
+        """
+        # Store dict of files in this directory
+        for filename, filedata in data["files"].items():
+            file_path = self.name + "/" + filename
+            if filename not in self._files:
+                self._files[filename] = RemoteFile(self.connection, file_path, max_depth=self.max_depth,
+                                                   data_size_limit=self.data_size_limit, data=filedata)
+
+        # Store dict of subdirectories in this directory
+        for subdir_name, subdir_data in data["directories"].items():
+            if subdir_name not in self._directories:
+                # This subdirectory object doesn't exist yet
+                subdir_object = RemoteDirectory(self.connection.server, self.name+"/"+subdir_name, data=subdir_data,
+                                                lazy_load=True, connection=self.connection, max_depth=self.max_depth,
+                                                data_size_limit=self.data_size_limit)
+                self._directories[subdir_name] = subdir_object
+            else:
+                subdir_object = self._directories[subdir_name]
+                if not(subdir_object.unpacked):
+                    # Directory exists but it's contents have not have been
+                    # requested from the server until now.
+                    subdir_object.unpack(subdir_data)
+        self.unpacked = True
+
+    def __getitem__(self, key):
+
+        # Ensure path is a string, and not a pathlib.Path, for example
+        key = str(key)
+
+        # Split into prefix before first slash and remainder of path
+        prefix, name = _split_path(key)
+
+        # Check for the case where key refers to something in a sub-directory, sub-sub directory etc.
+        # If a direct request for the target path succeeds we can infer the existence of the
+        # intermediate directories and avoid loading them until we need a full directory listing.
+        if prefix is not None:
+            if prefix not in self._directories:
+                # Request the required file or directory object data
+                try:
+                    data = self.connection.request_path(self.name+"/"+key)
+                except HDFStreamRequestError:
+                    raise KeyError(f"Invalid path: {key}")
+                # Create any intermediate directory objects and set them to lazy load
+                dir_obj = self
+                components = _path_components(key)
+                for component in components[:-1]:
+                    if component not in dir_obj._directories:
+                        subdir_obj = RemoteDirectory(self.connection.server, dir_obj.name+"/"+component,
+                                                     lazy_load=True, connection=self.connection, max_depth=self.max_depth,
+                                                     data_size_limit=self.data_size_limit)
+                        dir_obj._directories[component] = subdir_obj
+                        dir_obj = subdir_obj
+                # Create the target object, which might be a file or directory
+                if "directories" in data:
+                    # It's a directory
+                    dir_obj._directories[components[-1]] = RemoteDirectory(self.connection.server, dir_obj.name+"/"+components[-1], data=data,
+                                                                           lazy_load=False, connection=self.connection, max_depth=self.max_depth,
+                                                                           data_size_limit=self.data_size_limit)
+                else:
+                    # It's a file
+                    dir_obj._files[components[-1]] = RemoteFile(self.connection, dir_obj.name+"/"+components[-1],
+                                                                max_depth=self.max_depth, data_size_limit=self.data_size_limit,
+                                                                data=data)
+            return self._directories[prefix][name]
+
+        # If we don't have this directory entry already, request the directory listing
+        if name not in self._directories and name not in self._files:
+            self.load()
+
+        # Check if key refers to a subdirectory in this directory
+        if name in self._directories:
+            return self._directories[name]
+
+        # Check if key refers to a file in this directory
+        if name in self._files:
+            return self._files[name]
+
+        raise KeyError("Invalid path: "+key)
+
+    def __len__(self):
+        self.load()
+        return len(self._directories) + len(self._files)
+
+    def __iter__(self):
+        self.load()
+        for directory in self._directories:
+            yield directory
+        for file in self._files:
+            yield file
+
+    def __repr__(self):
+        self.load()
+        nr_files = len(self._files)
+        nr_dirs = len(self._directories)
+        return f'<Remote directory {self.name} with {nr_dirs} sub-directories, {nr_files} files>'
+
+    @property
+    def files(self):
+        self.load()
+        return self._files
+
+    @property
+    def directories(self):
+        self.load()
+        return self._directories
+
+    def _ipython_key_completions_(self):
+        self.load()
+        return list(self._directories.keys()) + list(self._files.keys())
+
+    def File(self, filename, mode="r"):
+        """
+        Open the file at the specified path relative to this directory
+
+        This allows a RemoteDirectory to mimic h5py, in a limited way
+        """
+
+        # Locate the file
+        f = self[filename]
+
+        # Check that it really is a file
+        if not isinstance(f, RemoteFile):
+            raise IOError(f"Path {filename} is not a file!")
+
+        # Check that it's a HDF5 file
+        if not f.is_hdf5():
+            raise IOError(f"Path {filename} is not a HDF5 file!")
+
+        return f
+
+    def is_hdf5(self, filename):
+        """
+        Check that the specified file is a HDF5 file
+        """
+
+        # Locate the file
+        try:
+            f = self[filename]
+        except KeyError:
+            return False
+
+        # Check that it really is a file and not a directory
+        if not isinstance(f, RemoteFile):
+            return False
+
+        return f.is_hdf5()
