@@ -94,3 +94,13 @@ slices:
   * Slice indexes in dimensions other than the first must not differ between slices
   * Slices must not overlap
   * Slices can only concatenated along the first dimension
+
+## Download progress indication
+
+By default the module will show a progress bar (using
+[tqdm](https://github.com/tqdm/tqdm)) during downloads if stdout is a
+terminal. To prevent this:
+```
+import hdfstream
+hdfstream.disable_progress(True)
+```
