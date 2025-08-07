@@ -1,8 +1,9 @@
-# Python client module for HDF5/msgpack streaming service
+# Python client module for HDF5 streaming service
 
-This module provides facilities to access remote HDF5 files stored on
-the COSMA system in Durham by streaming their contents in messagepack
-format.
+This module provides facilities to access HDF5 files stored on the
+COSMA system in Durham by streaming their contents in messagepack
+format. It attempts to replicate the [h5py](https://www.h5py.org/)
+high level interface to some extent.
 
 ## Installation
 
@@ -32,12 +33,12 @@ print(list(root))
 A file or subdirectory can be opened by indexing the RemoteDirectory. For example:
 ```
 # Open a subdirectory
-subdir = root["Fiducial_models/RefL0012N0188/snapshot_028_z000p000"]
+subdir = root["EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000"]
 ```
 which returns another RemoteDirectory, or
 ```
 # Open a HDF5 file
-snap_file = root["Fiducial_models/RefL0012N0188/snapshot_028_z000p000/snap_028_z000p000.0.hdf5"]
+snap_file = root["EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000/snap_028_z000p000.0.hdf5"]
 ```
 which opens the specified file and returns a RemoteFile object.
 
@@ -45,7 +46,7 @@ which opens the specified file and returns a RemoteFile object.
 
 Files are opened by indexing the directory object with the path to the file:
 ```
-snap_file = root["Fiducial_models/RefL0012N0188/snapshot_028_z000p000/snap_028_z000p000.0.hdf5"]
+snap_file = root["EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000/snap_028_z000p000.0.hdf5"]
 ```
 This returns a RemoteFile object, which behaves like a h5py.File. We
 can read a dataset by indexing the file:
