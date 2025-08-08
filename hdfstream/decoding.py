@@ -191,7 +191,7 @@ def decode_ndarray(stream, desc, progress, destination=None):
 
     # And check that the buffer is the right size
     if buf.nbytes != nbytes:
-        raise RuntimError("Destination buffer for slice has incorrect size")
+        raise RuntimeError("Destination buffer for slice has incorrect size")
     progress.total = nbytes
 
     # Skip past the bytes we've interpreted
