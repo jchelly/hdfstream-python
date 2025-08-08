@@ -2,7 +2,7 @@
 
 from hdfstream.exceptions import HDFStreamRequestError
 from hdfstream.connection import Connection, verify_cert
-from hdfstream.decoding import disable_progress
+from hdfstream.decoding import disable_progress, set_progress_delay
 from hdfstream.remote_directory import RemoteDirectory
 from hdfstream.remote_file import RemoteFile
 from hdfstream.remote_group import RemoteGroup

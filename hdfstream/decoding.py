@@ -18,6 +18,7 @@ be_uint32 = np.dtype(">u4")
 
 
 _disable_progress = None
+_progress_delay = 0.1
 def disable_progress(disable):
     """
     Allow enabling or disabling the progress bar. Sets tqdm(disable=...).
@@ -28,6 +29,11 @@ def disable_progress(disable):
     """
     global _disable_progress
     _disable_progress = disable
+
+
+def set_progress_delay(delay):
+    global _progress_delay
+    _progress_delay = delay
 
 
 def decode_hook(data):
@@ -92,7 +98,7 @@ def decode_response(response, desc):
     if response.headers.get("Content-Encoding"):
         response.raw.decode_content = True
 
-    with tqdm(unit="B", unit_scale=True, delay=0.25, disable=_disable_progress, desc=desc) as progress:
+    with tqdm(unit="B", unit_scale=True, delay=_progress_delay, disable=_disable_progress, desc=desc) as progress:
 
         # Get the raw data stream from the http response
         stream = StreamingDecoder(response.raw)
