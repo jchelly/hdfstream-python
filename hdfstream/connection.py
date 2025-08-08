@@ -119,7 +119,7 @@ class Connection:
         Request the msgpack representation of a file or directory from the server
         """
         url = f"{self.server}/msgpack/{path}"
-        return self.get_and_unpack(url)
+        return self.get_and_unpack(url, desc=f"Path: {path}")
 
     def request_object(self, path, name, data_size_limit, max_depth):
         """
@@ -131,7 +131,7 @@ class Connection:
             "max_depth" : max_depth
         }
         url = f"{self.server}/msgpack/{path}"
-        return self.get_and_unpack(url, params, desc=name)
+        return self.get_and_unpack(url, params, desc=f"Object: {name}")
 
     def request_slice(self, path, name, slice_string):
         """
@@ -142,7 +142,7 @@ class Connection:
             "slice"  : slice_string,
         }
         url = f"{self.server}/msgpack/{path}"
-        return self.get_and_unpack(url, params, desc=name)
+        return self.get_and_unpack(url, params, desc=f"Slice: {name}")
 
     def open_file(self, path, mode='r'):
         """

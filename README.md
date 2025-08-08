@@ -104,3 +104,9 @@ terminal. To prevent this:
 import hdfstream
 hdfstream.disable_progress(True)
 ```
+Set this to False to always show the progress bar or None to restore
+the default behaviour. You can also set the delay in seconds before the
+progress bar is shown:
+```
+hdfstream.set_progress_delay(1.0)
+```
