@@ -129,13 +129,25 @@ class RemoteDataset:
         """
         Mimic h5py's Dataset.read_direct() method.
 
-        For compatibility only. There's no performance benefit here.
+        This will use the readinto() method of the http response stream to
+        store data directly into the destination buffer. Only works for fixed
+        length types. Will throw an exception if called on vlen data.
         """
         if source_sel is None:
             source_sel = Ellipsis
         if dest_sel is None:
             dest_sel = Ellipsis
-        array[dest_sel] = self[source_sel]
+        slice_string, _ = self.make_slice_string(source_sel)
+
+        # Get a flattened view of the destination selection, making sure we do not make a copy
+        dest_view = array[dest_sel].reshape(-1)
+        if not dest_view.flags['C_CONTIGUOUS']:
+            raise RuntimeError("Destination for read_direct() must be C contiguous")
+        if not np.shares_memory(dest_view, array):
+            raise RuntimeError("Unable to read directly into specified selection")
+
+        # Request the data
+        self.connection.request_slice_into(self.file_path, self.name, slice_string, dest_view)
 
     def __len__(self):
         if len(self.shape) >= 1:
@@ -149,7 +161,7 @@ class RemoteDataset:
         """
         pass
 
-    def request_slices(self, keys):
+    def request_slices(self, keys, dest=None):
         """
         Request a series of dataset slices from the server
 
@@ -170,9 +182,15 @@ class RemoteDataset:
             slices.append(slice_string)
         slice_string = ";".join(slices)
 
-        # Request the data
-        data = self.connection.request_slice(self.file_path, self.name, slice_string)
+        if dest is None:
+            # Make the request and return a new array
+            data = self.connection.request_slice(self.file_path, self.name, slice_string)
+            # Remove dimensions where the index was a scalar
+            result_dims = np.asarray(data.shape, dtype=int)[dim_mask]
+            return data.reshape(result_dims)
+        else:
+            # Download the data into the supplied destination array's buffer
+            if not dest.flags['C_CONTIGUOUS']:
+                raise RuntimeError("Destination for read_direct() must be C contiguous")
+            self.connection.request_slice_into(self.file_path, self.name, slice_string, dest)
 
-        # Remove dimensions where the index was a scalar
-        result_dims = np.asarray(data.shape, dtype=int)[dim_mask]
-        return data.reshape(result_dims)

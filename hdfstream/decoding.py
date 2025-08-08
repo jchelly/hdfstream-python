@@ -82,7 +82,7 @@ def decode_hook(data):
     return data
 
 
-def decode_response(response, desc):
+def decode_response(response, desc, destination=None):
     """
     Decode a msgpack encoded http response
 
@@ -106,9 +106,11 @@ def decode_response(response, desc):
         # Decode the response
         if stream.peek(len(array_prefix)) == array_prefix:
             # Response is a fixed length type ndarray
-            return decode_ndarray(stream, desc, progress)
+            return decode_ndarray(stream, desc, progress, destination)
         else:
             # Response is something else
+            if destination is not None:
+                raise RuntimeError("Can only decode fixed size types directly into a buffer")
             return decode_generic(stream, desc, progress)
 
 
@@ -140,7 +142,7 @@ def unpack_equals(unpacker, value):
         raise RuntimeError("Unexpected value encountered unpacking ndarray")
 
 
-def decode_ndarray(stream, desc, progress):
+def decode_ndarray(stream, desc, progress, destination=None):
     """
     Decode a msgpack encoded ndarray of a fixed size type
 
@@ -181,8 +183,15 @@ def decode_ndarray(stream, desc, progress):
     dtype = map_keys["type"]
     nbytes = map_keys["nbytes"]
 
-    # Allocate a buffer for the full amount of data
-    buf = memoryview(np.empty(nbytes, dtype=np.uint8)).cast("B")
+    # Create the buffer if necessary
+    if destination is None:
+        buf = memoryview(np.empty(nbytes, dtype=np.uint8)).cast("B")
+    else:
+        buf = memoryview(destination).cast("B")
+
+    # And check that the buffer is the right size
+    if buf.nbytes != nbytes:
+        raise RuntimError("Destination buffer for slice has incorrect size")
     progress.total = nbytes
 
     # Skip past the bytes we've interpreted
@@ -202,11 +211,13 @@ def decode_ndarray(stream, desc, progress):
             offset += n
             progress.update(n)
 
-    # Wrap the buffer in a suitable ndarray
-    arr = np.frombuffer(buf, dtype=dtype).reshape(shape)
-
     # We should now be at the end of the stream
     if len(stream.read(1)) != 0:
         raise RuntimeError("Unexpected extra data at end of stream!")
 
-    return arr
+    if destination is None:
+        # Wrap the buffer in a suitable ndarray and return it
+        return np.frombuffer(buf, dtype=dtype).reshape(shape)
+    else:
+        # Already wrote the result to the destination buffer
+        return None

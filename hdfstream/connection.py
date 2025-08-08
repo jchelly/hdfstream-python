@@ -135,7 +135,7 @@ class Connection:
 
     def request_slice(self, path, name, slice_string):
         """
-        Request a dataset slice.
+        Request a dataset slice. Returns a new np.ndarray.
         """
         params = {
             "object" : name,
@@ -143,6 +143,22 @@ class Connection:
         }
         url = f"{self.server}/msgpack/{path}"
         return self.get_and_unpack(url, params, desc=f"Slice: {name}")
+
+    def request_slice_into(self, path, name, slice_string, destination):
+        """
+        Request a dataset slice and read it into the supplied buffer.
+
+        Will only work for fixed length data types.
+        """
+        params = {
+            "object" : name,
+            "slice"  : slice_string,
+        }
+        url = f"{self.server}/msgpack/{path}"
+        with _maybe_suppress_cert_warnings():
+            with self.session.get(url, params=params, stream=True, verify=_verify_cert) as response:
+                raise_for_status(response)
+                decode_response(response, desc=f"Slice (direct): {name}", destination=destination)
 
     def open_file(self, path, mode='r'):
         """
