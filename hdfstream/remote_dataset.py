@@ -192,7 +192,10 @@ class RemoteDataset:
     def request_slices(self, keys, dest=None):
         """
         Request a series of dataset slices from the server and return a single
-        array with data concatenated along the first axis. Example usage::
+        array with the slices concatenated along the first dimension. Slices
+        may only differ in the first dimension, must be in ascending order of
+        starting index in the first dimension, and must not overlap. Example
+        usage::
 
           slices = []
           slices.append(np.s_[0:10,:])

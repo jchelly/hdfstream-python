@@ -1,18 +1,18 @@
-.. hdfstream documentation master file, created by
-   sphinx-quickstart on Sat Aug  9 14:55:32 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Documentation for the hdfstream python client
+=============================================
 
-HDFStream python documentation
-==============================
-
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
-
+This python module is used to access a service which streams the contents of
+HDF5 datasets over http. It provides an interface which is based on the h5py
+high level API. See the links below for usage information and the module API
+reference.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
+   connecting
+   directories
+   files
+   groups
+   datasets
    api
