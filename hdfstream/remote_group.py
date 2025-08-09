@@ -5,7 +5,7 @@ from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
 
 
-def unpack_object(connection, file_path, name, data, max_depth, data_size_limit, parent):
+def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit, parent):
     """
     Construct an appropriate class instance for a HDF5 object
     """
@@ -20,16 +20,28 @@ def unpack_object(connection, file_path, name, data, max_depth, data_size_limit,
 
 class RemoteGroup(collections.abc.Mapping):
     """
-    Object representing a HDF5 group in the remote file
+    This class represents a HDF5 group in a file on the server. To open a
+    group, index the parent RemoteFile object. The class constructor documented
+    here is used to implement lazy loading of HDF5 metadata and should not
+    usually be called directly.
 
-    Parameters:
-
-    connection: Connection object to use to send requests
-    file_path: path to the file containing the HDF5 group
-    name: name of the HDF5 group to open
-    max_depth: maximum recursion depth for requests to the server
-    data_size_limit: maximum size of dataset body to download with metadata
-    data: msgpack encoded group description
+    Indexing a RemoteGroup with a HDF5 object name yields a RemoteGroup or
+    RemoteDataset object.
+    
+    :type connection: hdfstream.connection.Connection
+    :param connection: connection object which stores http session information
+    :param file_path: virtual path of the file containing the group
+    :type file_path: String
+    :param name: name of the HDF5 group
+    :type name: String
+    :param max_depth: maximum recursion depth for group metadata requests
+    :type max_depth: int, optional
+    :param data_size_limit: max. dataset size (bytes) to be downloaded with metadata
+    :type data_size_limit: int, optional
+    :param data: decoded msgpack data describing the group, defaults to None
+    :type data: dict, optional
+    :param parent: parent HDF5 group, defaults to None
+    :type parent: hdfstream.RemoteGroup, optional
     """
     def __init__(self, connection, file_path, name, max_depth=max_depth_default,
                  data_size_limit=data_size_limit_default, data=None, parent=None):
@@ -45,17 +57,17 @@ class RemoteGroup(collections.abc.Mapping):
         # If msgpack data was supplied, decode it. If not, we'll wait until
         # we actually need the data before we request it from the server.
         if data is not None:
-            self.unpack(data)
+            self._unpack(data)
 
-    def load(self):
+    def _load(self):
         """
         Request the msgpack representation of this group from the server
         """
         if not self.unpacked:
             data = self.connection.request_object(self.file_path, self.name, self.data_size_limit, self.max_depth)
-            self.unpack(data)
+            self._unpack(data)
 
-    def unpack(self, data):
+    def _unpack(self, data):
         """
         Decode the msgpack representation of this group
         """
@@ -76,19 +88,19 @@ class RemoteGroup(collections.abc.Mapping):
                         path = self.name + member_name
                     else:
                         path = self.name + "/" + member_name
-                    self.members[member_name] = unpack_object(self.connection, self.file_path, path,
-                                                              member_data, self.max_depth, self.data_size_limit,
-                                                              self)
+                    self.members[member_name] = _unpack_object(self.connection, self.file_path, path,
+                                                               member_data, self.max_depth, self.data_size_limit,
+                                                               self)
                 else:
                     self.members[member_name] = None
 
         self.unpacked = True
 
-    def ensure_member_loaded(self, key):
+    def _ensure_member_loaded(self, key):
         """
         Load sub-groups on access, if they were not already loaded
         """
-        self.load()
+        self._load()
         if self.members[key] is None:
             object_name = self.name+"/"+key
             self.members[key] = RemoteGroup(self.connection, self.file_path, object_name, self.max_depth, self.data_size_limit, parent=self)
@@ -100,7 +112,7 @@ class RemoteGroup(collections.abc.Mapping):
         If the key is a path with multiple components we use the first
         component to identify a member object to pass the rest of the path to.
         """
-        self.load()
+        self._load()
 
         # Absolute paths need special treatment.
         if key.startswith("/"):
@@ -124,7 +136,7 @@ class RemoteGroup(collections.abc.Mapping):
             rest_of_path = None
 
         # Locate the specifed sub group/dataset
-        self.ensure_member_loaded(member_name)
+        self._ensure_member_loaded(member_name)
         member_object = self.members[member_name]
 
         if rest_of_path is None:
@@ -142,11 +154,11 @@ class RemoteGroup(collections.abc.Mapping):
                 raise KeyError(f"Path component {components[0]} is not a group")
 
     def __len__(self):
-        self.load()
+        self._load()
         return len(self.members)
 
     def __iter__(self):
-        self.load()
+        self._load()
         for member in self.members:
             yield member
 
@@ -160,6 +172,8 @@ class RemoteGroup(collections.abc.Mapping):
     def parent(self):
         """
         Return the parent group of this group
+
+        :rtype: hdfstream.RemoteGroup
         """
         if self.name == "/":
             return self
@@ -167,7 +181,7 @@ class RemoteGroup(collections.abc.Mapping):
             return self._parent
 
     def _ipython_key_completions_(self):
-        self.load()
+        self._load()
         return list(self.members.keys())
 
     def _visit(self, func, path):
@@ -192,11 +206,15 @@ class RemoteGroup(collections.abc.Mapping):
 
     def visit(self, func):
         """
-        Call callable func on all members recursively. Stops if return value
-        is not None.
+        Recursively call func on all members of this HDF5 group. The
+        function should take a single parameter which is the name of
+        the visited object. If the function returns a value other than
+        None then iteration stops and the value is returned.
 
-        func takes a single string parameter with the member name relative
-        to this group.
+        :param func: The function to call
+        :type func: callable func(name)
+
+        :rtype: returns the value returned by func
         """
         return self._visit(func, None)
 
@@ -222,16 +240,20 @@ class RemoteGroup(collections.abc.Mapping):
 
     def visititems(self, func):
         """
-        Call callable func on all members recursively. Stops if return value
-        is not None.
+        Recursively call func on all members of this HDF5 group. The
+        function should take two parameters: the name of the visited object
+        and the object itself. If the function returns a value other than
+        None then iteration stops and the value is returned.
 
-        In this version func takes a second parameter which will return a
-        RemoteGroup or RemoteDataset object.
+        :param func: The function to call
+        :type func: callable func(name, object)
+
+        :rtype: returns the value returned by func
         """
         return self._visititems(func, None)
 
     def close(self):
         """
-        There's nothing to close, but some code might expect this to exist
+        Close the group. Only included for compatibility (there's nothing to close.)
         """
         pass

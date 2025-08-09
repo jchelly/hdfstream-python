@@ -1,5 +1,8 @@
 #!/bin/env python
 
+__all__ = ["verify_cert", "disable_progress", "set_progress_delay", "open",
+           "RemoteDirectory", "RemoteFile", "RemoteGroup", "RemoteDataset"]
+
 from hdfstream.exceptions import HDFStreamRequestError
 from hdfstream.connection import Connection, verify_cert
 from hdfstream.decoding import disable_progress, set_progress_delay

@@ -6,14 +6,32 @@ import collections.abc
 
 class RemoteDataset:
     """
-    Object representing a HDF5 dataset in the remote file
+    This class represents a HDF5 dataset in a file on the server. To open a
+    dataset, index the parent RemoteGroup or RemoteFile object. The class
+    constructor documented here is used to implement lazy loading of HDF5
+    metadata and should not usually be called directly.
+    
+    Indexing a RemoteDataset with numpy style slicing yields a numpy array
+    with the dataset contents. Slices must be contiguous ranges. Indexing
+    with an array is not supported.
+    
+    :type connection: hdfstream.connection.Connection
+    :param connection: connection object which stores http session information
+    :param file_path: virtual path of the file containing the dataset
+    :type file_path: String
+    :param name: name of the HDF5 dataset
+    :type name: String
+    :param data: decoded msgpack data describing the dataset, defaults to None
+    :type data: dict, optional
+    :param parent: parent HDF5 group, defaults to None
+    :type parent: hdfstream.RemoteGroup, optional
 
-    Parameters:
-
-    connection: Connection object to use to send requests
-    file_path: path to the file containing the HDF5 dataset
-    name: name of the HDF5 dataset to open
-    data: msgpack encoded dataset description
+    :ivar attrs: dict of HDF5 attribute values of the form {name : np.ndarray}
+    :vartype attrs: dict
+    :ivar dtype: data type for this dataset
+    :vartype dtype: np.dtype
+    :ivar shape: shape of this dataset
+    :vartype shape: tuple of integers
     """
     def __init__(self, connection, file_path, name, data, parent):
 
@@ -43,7 +61,7 @@ class RemoteDataset:
             if hasattr(arr, "shape") and len(arr.shape) == 0:
                 self.attrs[name] = arr[()]
 
-    def make_slice_string(self, key):
+    def _make_slice_string(self, key):
         """
         Given a key suitable for indexing an ndarray, generate a slice
         specifier string for the web API.
@@ -105,7 +123,7 @@ class RemoteDataset:
             key = (key,)
 
         # Convert the key to a slice string
-        slice_string, dim_mask = self.make_slice_string(key)
+        slice_string, dim_mask = self._make_slice_string(key)
 
         if self.data is None:
             # Dataset is not in memory, so request it from the server
@@ -127,17 +145,27 @@ class RemoteDataset:
 
     def read_direct(self, array, source_sel=None, dest_sel=None):
         """
-        Mimic h5py's Dataset.read_direct() method.
+        Read data directly into a destination buffer. This can
+        save time by preventing unneccessary copying of the data but
+        only works for fixed length types (e.g. integer or floating
+        point data).
 
-        This will use the readinto() method of the http response stream to
-        store data directly into the destination buffer. Only works for fixed
-        length types. Will throw an exception if called on vlen data.
+        This differs from h5py's Dataset.read_direct() in that no type
+        conversion is done. The output array must have the same dtype as the
+        dataset.
+        
+        :param array: output array which will receive the data
+        :type array: np.ndarray
+        :param source_sel: selection in the source dataset as a numpy slice, defaults to None
+        :type source_sel: slice or list of slices, optional
+        :param dest_sel: selection in the output array as a numpy slice, defaults to None
+        :type dest_sel: slice or list of slices, optional
         """
         if source_sel is None:
             source_sel = Ellipsis
         if dest_sel is None:
             dest_sel = Ellipsis
-        slice_string, _ = self.make_slice_string(source_sel)
+        slice_string, _ = self._make_slice_string(source_sel)
 
         # Get a flattened view of the destination selection, making sure we do not make a copy
         dest_view = array[dest_sel].reshape(-1)
@@ -157,26 +185,32 @@ class RemoteDataset:
 
     def close(self):
         """
-        There's nothing to close, but some code might expect this to exist
+        Close the group. Only included for compatibility (there's nothing to close.)
         """
         pass
 
     def request_slices(self, keys, dest=None):
         """
-        Request a series of dataset slices from the server
+        Request a series of dataset slices from the server and return a single
+        array with data concatenated along the first axis. Example usage::
 
-        Returns a single array with data concatenated along the first
-        axis. Intended usage is something like this:
+          slices = []
+          slices.append(np.s_[0:10,:])
+          slices.append(np.s_[100:110,:])
+          result = dataset.request_slices(slices)
 
-        slices = []
-        slices.append(np.s_[0:10,:])
-        slices.append(np.s_[100:110,:])
-        result = dataset.request_slices(slices)
+        If the optional dest parameter is used the result is written to dest.
+        Otherwise a new np.ndarray is returned.
+        
+        :param keys: list of slices to read
+        :type keys: list of slices
+        :param dest: destination buffer to write to, defaults to None
+        :type dest: np.ndarray, optional
         """
         # Construct the slice specifier string
         slices = []
         for key in keys:
-            slice_string, dim_mask = self.make_slice_string(key)
+            slice_string, dim_mask = self._make_slice_string(key)
             slices.append(slice_string)
         slice_string = ";".join(slices)
 

@@ -38,6 +38,9 @@ class RemoteDirectory(collections.abc.Mapping):
     is used to implement lazy loading of directory information and should not
     usually be called directly.
 
+    Indexing a RemoteDirectory with a relative path yields another
+    RemoteDirectory or a RemoteFile.
+
     :param server: URL of the server
     :type server: String
     :param name: virtual path of the directory to open, defaults to "/"
@@ -230,7 +233,7 @@ class RemoteDirectory(collections.abc.Mapping):
         :param mode: mode to open the file, defaults to "r"
         :type mode: String
 
-        :rtype: hdfstream.remote_file.RemoteFile
+        :rtype: hdfstream.RemoteFile
         """
         # Locate the file
         f = self[filename]

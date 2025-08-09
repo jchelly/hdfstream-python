@@ -20,7 +20,10 @@ from hdfstream.decoding import decode_response
 _verify_cert = True
 def verify_cert(enable):
     """
-    Allow disabling SSL certificate verification (useful for testing)
+    Disable SSL certificate validation. Should only be used for testing.
+
+    :param enable: whether to validate the server's certificate
+    :type enable: bool
     """
     global _verify_cert
     _verify_cert = enable

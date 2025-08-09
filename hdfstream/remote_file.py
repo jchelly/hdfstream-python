@@ -14,15 +14,18 @@ class RemoteFile(collections.abc.Mapping):
     implement lazy loading of file metadata and should not usually be called
     directly.
 
+    Indexing a RemoteFile with a HDF5 object name will yield a RemoteGroup or
+    RemoteDataset object, if the file is a HDF5 file.
+    
     :type connection: hdfstream.connection.Connection
     :param connection: connection object which stores http session information
-    :param file_path: virtual path of the directory to open, defaults to "/"
+    :param file_path: virtual path of the file
     :type file_path: String
     :param max_depth: maximum recursion depth for group metadata requests
     :type max_depth: int, optional
     :param data_size_limit: max. dataset size (bytes) to be downloaded with metadata
     :type data_size_limit: int, optional
-    :param data: decoded msgpack data describing the directory, defaults to None
+    :param data: decoded msgpack data describing the file, defaults to None
     :type data: dict, optional
     """
     def __init__(self, connection, file_path, max_depth=max_depth_default,
@@ -63,7 +66,7 @@ class RemoteFile(collections.abc.Mapping):
         """
         Return a RemoteGroup corresponding to this file's HDF5 root group
 
-        :rtype: hdfstream.remote_group.RemoteGroup
+        :rtype: hdfstream.RemoteGroup
         """
         if self._root is None:
             self._load()
@@ -113,7 +116,7 @@ class RemoteFile(collections.abc.Mapping):
         """
         For RemoteFile objects, the parent property returns the root HDF5 group
 
-        :rtype: hdfstream.remote_group.RemoteGroup
+        :rtype: hdfstream.RemoteGroup
         """
         return self.root
 

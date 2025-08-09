@@ -21,17 +21,22 @@ _disable_progress = None
 _progress_delay = 0.1
 def disable_progress(disable):
     """
-    Allow enabling or disabling the progress bar. Sets tqdm(disable=...).
+    Disable the progress bar when downloading data.
 
-    True: never show
-    False: always show
-    None: (default) show if stdout is a terminal
+    :param disable: set True to never show the progress bar, False to always show, and None to show if stdout is a terminal
+    :type disable: bool or None
     """
     global _disable_progress
     _disable_progress = disable
 
 
 def set_progress_delay(delay):
+    """
+    Set the delay in seconds before the progress bar is shown
+
+    :param delay: time delay in seconds
+    :type delay: float
+    """
     global _progress_delay
     _progress_delay = delay
 
