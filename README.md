@@ -1,9 +1,9 @@
 # Python client module for HDF5 streaming service
 
-This module provides facilities to access HDF5 files stored on the
-COSMA system in Durham by streaming their contents in messagepack
-format. It attempts to replicate the [h5py](https://www.h5py.org/)
-high level interface to some extent.
+This module provides facilities to access HDF5 files stored on a
+remote server which streams their contents in messagepack format. It
+attempts to replicate the [h5py](https://www.h5py.org/) high level
+interface to some extent.
 
 ## Installation
 
@@ -12,7 +12,9 @@ The module can be installed using pip:
 pip install hdfstream
 ```
 
-## Connecting to the server
+## Quick start
+
+### Connecting to the server
 
 You can connect to the server as follows:
 ```
@@ -22,7 +24,7 @@ root = hdfstream.open("https://localhost:8443/hdfstream", "/")
 Here, the first parameter is the server URL and the second is the name
 of the directory to open. This returns a RemoteDirectory object.
 
-## Remote file and directory objects
+### Remote file and directory objects
 
 The RemoteDirectory behaves like a python dictionary where the keys
 are the names of files and subdirectories within the directory. We can
@@ -42,7 +44,7 @@ snap_file = root["EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000/snap
 ```
 which opens the specified file and returns a RemoteFile object.
 
-## Reading HDF5 groups and datasets
+### Reading HDF5 groups and datasets
 
 Files are opened by indexing the directory object with the path to the file:
 ```
@@ -68,7 +70,7 @@ And we can list the contents of a group:
 print(list(snap_file["PartType0"]))
 ```
 
-## Requesting multiple dataset slices
+### Requesting multiple dataset slices
 
 When working with simulation data it can be useful to be able to
 efficiently read multiple non-contiguous chunks of a dataset
@@ -95,7 +97,7 @@ slices:
   * Slices must not overlap
   * Slices can only concatenated along the first dimension
 
-## Download progress indication
+### Download progress indication
 
 By default the module will show a progress bar (using
 [tqdm](https://github.com/tqdm/tqdm)) during downloads if stdout is a
@@ -110,3 +112,5 @@ progress bar is shown:
 ```
 hdfstream.set_progress_delay(1.0)
 ```
+Setting the delay to zero will generate output for every http request
+made by the module.
