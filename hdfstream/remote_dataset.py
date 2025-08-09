@@ -165,8 +165,6 @@ class RemoteDataset:
         """
         Request a series of dataset slices from the server
 
-        Slice objects can be created with np.s_.
-
         Returns a single array with data concatenated along the first
         axis. Intended usage is something like this:
 

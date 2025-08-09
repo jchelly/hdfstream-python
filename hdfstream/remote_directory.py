@@ -32,23 +32,30 @@ def _split_path(path):
 
 class RemoteDirectory(collections.abc.Mapping):
     """
-    Object representing a virtual directory on the remote server
+    This class represents a virtual directory on the server. To open a remote
+    directory, call hdfstream.open() with the required path or index the parent
+    RemoteDirectory with a relative path. The class constructor documented here
+    is used to implement lazy loading of directory information and should not
+    usually be called directly.
 
-    Parameters:
-
-    server: URL of the server (e.g. https://localhost:8443/hdfstream)
-    name: path of the remote directory to open
-    user: user name to log in with
-    password: user's password, or None to prompt
-
-    The remaining parameters are used to implement recursive lazy loading and
-    should not normally need to be set by the user:
-
-    data: msgpack encoded description of directory and maybe subdirectories
-    max_depth: maximum recursion depth for requests to the server
-    data_size_limit: maximum size of dataset body to download with metadata
-    lazy_load: if True, don't request directory data until it is needed
-    connection: Connection object to use to send requests
+    :param server: URL of the server
+    :type server: String
+    :param name: virtual path of the directory to open, defaults to "/"
+    :type name: String
+    :param user: name of the user account for login, defaults to None
+    :type user: String, optional
+    :param password: password for login, defaults to None
+    :type password: String, optional
+    :param data: decoded msgpack data describing the directory, defaults to None
+    :type data: dict, optional
+    :param max_depth: maximum recursion depth for group metadata requests
+    :type max_depth: int, optional
+    :param data_size_limit: max. dataset size (bytes) to be downloaded with metadata
+    :type data_size_limit: int, optional
+    :param lazy_load: directory listing is requested immediately if False, or delayed until needed if True
+    :type lazy_load: bool, optional
+    :param connection: connection object which stores http session information
+    :type connection: hdfstream.connection.Connection
     """
     def __init__(self, server, name="/", user=None, password=None, data=None,
                  max_depth=max_depth_default, data_size_limit=data_size_limit_default,
@@ -73,23 +80,23 @@ class RemoteDirectory(collections.abc.Mapping):
         # If msgpack data was supplied, decode it. If not, we'll wait until
         # we actually need the data before we request it from the server.
         if data is not None:
-            self.unpack(data)
+            self._unpack(data)
 
         # If the class was explicitly instantiated by the user (and not by a
-        # recursive unpack() call) then we should always contact the server so
+        # recursive _unpack() call) then we should always contact the server so
         # that we immediately detect incorrect paths.
         if lazy_load==False and not(self.unpacked):
-            self.load()
+            self._load()
 
-    def load(self):
+    def _load(self):
         """
         Request the msgpack representation of this directory from the server
         """
         if not self.unpacked:
             data = self.connection.request_path(self.name)
-            self.unpack(data)
+            self._unpack(data)
 
-    def unpack(self, data):
+    def _unpack(self, data):
         """
         Decode the msgpack representation of this directory
         """
@@ -113,7 +120,7 @@ class RemoteDirectory(collections.abc.Mapping):
                 if not(subdir_object.unpacked):
                     # Directory exists but it's contents have not have been
                     # requested from the server until now.
-                    subdir_object.unpack(subdir_data)
+                    subdir_object._unpack(subdir_data)
         self.unpacked = True
 
     def __getitem__(self, key):
@@ -159,7 +166,7 @@ class RemoteDirectory(collections.abc.Mapping):
 
         # If we don't have this directory entry already, request the directory listing
         if name not in self._directories and name not in self._files:
-            self.load()
+            self._load()
 
         # Check if key refers to a subdirectory in this directory
         if name in self._directories:
@@ -172,43 +179,53 @@ class RemoteDirectory(collections.abc.Mapping):
         raise KeyError("Invalid path: "+key)
 
     def __len__(self):
-        self.load()
+        self._load()
         return len(self._directories) + len(self._files)
 
     def __iter__(self):
-        self.load()
+        self._load()
         for directory in self._directories:
             yield directory
         for file in self._files:
             yield file
 
     def __repr__(self):
-        self.load()
+        self._load()
         nr_files = len(self._files)
         nr_dirs = len(self._directories)
         return f'<Remote directory {self.name} with {nr_dirs} sub-directories, {nr_files} files>'
 
     @property
     def files(self):
-        self.load()
+        """
+        Return a {name : RemoteFile} dict of files in this directory
+        """
+        self._load()
         return self._files
 
     @property
     def directories(self):
-        self.load()
+        """
+        Return a {name : RemoteDirectory} dict of sub-directories in this directory
+        """        
+        self._load()
         return self._directories
 
     def _ipython_key_completions_(self):
-        self.load()
+        self._load()
         return list(self._directories.keys()) + list(self._files.keys())
 
     def File(self, filename, mode="r"):
         """
-        Open the file at the specified path relative to this directory
+        Open the file at the specified path relative to this directory. The
+        mode parameter is present for compatibility with h5py. Only mode="r"
+        is accepted.
 
-        This allows a RemoteDirectory to mimic h5py, in a limited way
+        :param filename: path of the file to open
+        :type filename: String
+        :param mode: mode to open the file, defaults to "r"
+        :type mode: String
         """
-
         # Locate the file
         f = self[filename]
 
@@ -224,9 +241,11 @@ class RemoteDirectory(collections.abc.Mapping):
 
     def is_hdf5(self, filename):
         """
-        Check that the specified file is a HDF5 file
-        """
+        Return True if the specified file is a HDF5 file, False otherwise
 
+        :param filename: name of the file to check
+        :type filename: String
+        """
         # Locate the file
         try:
             f = self[filename]

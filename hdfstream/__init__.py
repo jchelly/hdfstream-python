@@ -25,7 +25,7 @@ def open(server, name, user=None, password=None, max_depth=max_depth_default,
     :type user: String, optional
     :param password: password for login, defaults to None
     :type password: String, optional
-    :param max_depth: maximum recursion depth for directory listings
+    :param max_depth: maximum recursion depth for group metadata requests
     :type max_depth: int, optional
     :param data_size_limit: max. dataset size (bytes) to download with metadata
     :type data_size_limit: int, optional
