@@ -9,8 +9,8 @@ Opening files and directories
    :undoc-members:
    :show-inheritance:
 
-Directory listings
-------------------
+Directory objects
+-----------------
 
 .. automodule:: hdfstream.remote_directory
    :members:
@@ -18,8 +18,8 @@ Directory listings
    :show-inheritance:
 
       
-File metadata
--------------
+File objects
+------------
 
 .. automodule:: hdfstream.remote_file
    :members:

@@ -199,6 +199,8 @@ class RemoteDirectory(collections.abc.Mapping):
     def files(self):
         """
         Return a {name : RemoteFile} dict of files in this directory
+
+        :rtype: dict
         """
         self._load()
         return self._files
@@ -207,6 +209,8 @@ class RemoteDirectory(collections.abc.Mapping):
     def directories(self):
         """
         Return a {name : RemoteDirectory} dict of sub-directories in this directory
+
+        :rtype: dict
         """        
         self._load()
         return self._directories
@@ -225,6 +229,8 @@ class RemoteDirectory(collections.abc.Mapping):
         :type filename: String
         :param mode: mode to open the file, defaults to "r"
         :type mode: String
+
+        :rtype: hdfstream.remote_file.RemoteFile
         """
         # Locate the file
         f = self[filename]
@@ -245,6 +251,8 @@ class RemoteDirectory(collections.abc.Mapping):
 
         :param filename: name of the file to check
         :type filename: String
+
+        :rtype: bool
         """
         # Locate the file
         try:

@@ -8,15 +8,22 @@ from hdfstream.exceptions import *
 
 class RemoteFile(collections.abc.Mapping):
     """
-    Object representing a file on the remote server
+    This class represents a file on the server. To open a remote file, call
+    hdfstream.open() with the full virtual path or index the parent
+    RemoteDirectory object. The class constructor documented here is used to
+    implement lazy loading of file metadata and should not usually be called
+    directly.
 
-    Parameters:
-
-    connection: Connection object to use to send requests
-    file_path: path to the file to open
-    max_depth: maximum recursion depth for requests to the server
-    data_size_limit: maximum size of dataset body to download with metadata
-    data: msgpack encoded file description
+    :type connection: hdfstream.connection.Connection
+    :param connection: connection object which stores http session information
+    :param file_path: virtual path of the directory to open, defaults to "/"
+    :type file_path: String
+    :param max_depth: maximum recursion depth for group metadata requests
+    :type max_depth: int, optional
+    :param data_size_limit: max. dataset size (bytes) to be downloaded with metadata
+    :type data_size_limit: int, optional
+    :param data: decoded msgpack data describing the directory, defaults to None
+    :type data: dict, optional
     """
     def __init__(self, connection, file_path, max_depth=max_depth_default,
                  data_size_limit=data_size_limit_default, data=None):
@@ -30,19 +37,19 @@ class RemoteFile(collections.abc.Mapping):
         # If msgpack data was supplied, decode it. If not, we'll wait until
         # we actually need the data before we request it from the server.
         if data is not None:
-            self.unpack(data)
+            self._unpack(data)
 
         self._root = None
 
-    def load(self):
+    def _load(self):
         """
         Request the msgpack representation of this file from the server
         """
         if not self.unpacked:
             data = self.connection.request_path(self.file_path)
-            self.unpack(data)
+            self._unpack(data)
 
-    def unpack(self, data):
+    def _unpack(self, data):
         """
         Decode the msgpack representation of this group
         """
@@ -54,10 +61,12 @@ class RemoteFile(collections.abc.Mapping):
     @property
     def root(self):
         """
-        Open the HDF5 root group in this file, if we didn't already
+        Return a RemoteGroup corresponding to this file's HDF5 root group
+
+        :rtype: hdfstream.remote_group.RemoteGroup
         """
         if self._root is None:
-            self.load()
+            self._load()
             if self.media_type != "application/x-hdf5":
                 raise HDFStreamRequestError("Cannot open non-HDF5 file as HDF5!")
             self._root = RemoteGroup(self.connection, self.file_path, name="/",
@@ -67,9 +76,13 @@ class RemoteFile(collections.abc.Mapping):
 
     def open(self, mode='r'):
         """
-        Return a File-like object with the contents of the file
+        Return a File-like object with the contents of the file. This can be
+        used to access non-HDF5 files.
 
-        Reading returns bytes if mode='rb' or strings if mode='r'.
+        :param mode: open the file in binary ('rb') or text ('r') mode
+        :type mode: String
+
+        :rtype: requests.Response.raw
         """
         return self.connection.open_file(self.file_path, mode=mode)
 
@@ -88,26 +101,52 @@ class RemoteFile(collections.abc.Mapping):
 
     def is_hdf5(self):
         """
-        Returns True if this is a HDF5 file
+        Return True if this is a HDF5 file, False otherwise
+
+        :rtype: bool
         """
-        self.load()
+        self._load()
         return self.media_type == "application/x-hdf5"
 
     @property
     def parent(self):
         """
-        For RemoteFile objects, parent returns the root group
+        For RemoteFile objects, the parent property returns the root HDF5 group
+
+        :rtype: hdfstream.remote_group.RemoteGroup
         """
         return self.root
 
     def _ipython_key_completions_(self):
-        self.load()
+        self._load()
         return list(self.root.keys())
 
     def visit(self, func):
+        """
+        Recursively call func on all HDF5 objects in the file. The
+        function should take a single parameter which is the name of
+        the visited object. If the function returns a value other than
+        None then iteration stops and the value is returned.
+
+        :param func: The function to call
+        :type func: callable func(name)
+
+        :rtype: returns the value returned by func
+        """
         return self.root.visit(func)
 
     def visititems(self, func):
+        """
+        Recursively call func on all HDF5 objects in the file. The
+        function should take two parameters: the name of the visited object
+        and the object itself. If the function returns a value other than
+        None then iteration stops and the value is returned.
+
+        :param func: The function to call
+        :type func: callable func(name, object)
+
+        :rtype: returns the value returned by func
+        """
         return self.root.visititems(func)
 
     def __enter__(self):
@@ -124,7 +163,7 @@ class RemoteFile(collections.abc.Mapping):
 
     def close(self):
         """
-        There's nothing to close, but some code might expect this to exist
+        Close the file. Only included for compatibility (there's nothing to close.)
         """
         pass
 
