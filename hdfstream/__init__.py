@@ -10,12 +10,29 @@ from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
 
 
-def open(server, name, user=None, password=None, data=None,
-         max_depth=max_depth_default, data_size_limit=data_size_limit_default):
+def open(server, name, user=None, password=None, max_depth=max_depth_default,
+         data_size_limit=data_size_limit_default):
     """
-    Open a remote file or directory given a virtual path
-    """
+    Connect to the server and return a RemoteDirectory or RemoteFile
+    corresponding to the specified virtual path. If a user name is specified
+    with no password, prompt for the password.
+    
+    :param server: URL of the server to connect to
+    :type server: String
+    :param name: path to the virtual file or directory on the server
+    :type name: String
+    :param user: name of the user account for login, defaults to None
+    :type user: String, optional
+    :param password: password for login, defaults to None
+    :type password: String, optional
+    :param max_depth: maximum recursion depth for directory listings
+    :type max_depth: int, optional
+    :param data_size_limit: max. dataset size (bytes) to download with metadata
+    :type data_size_limit: int, optional
 
+    :return: RemoteFile or RemoteDirectory corresponding to the requested path
+    :rtype: RemoteFile or RemoteDirectory
+    """
     connection = Connection.new(server, user, password)
     data = connection.request_path(name)
 
