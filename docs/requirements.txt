@@ -1,4 +1,10 @@
+# Install hdfstream dependencies
 -r ../requirements.txt
+
+# Install the hdfstream module
+-e ..
+
+# Install sphinx
 sphinx
 sphinx-rtd-theme
 sphinx-autodoc-typehints
