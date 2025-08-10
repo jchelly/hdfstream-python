@@ -18,7 +18,7 @@ or, equivalently::
   subsubgroup = remote_file["group"]["subgroup"]["subsubgroup"]
 
 although the latter method may generate more requests to the
-server. Any attributes of the group are available through its `attrs`
+server. Any attributes of the group are available through its ``attrs``
 attribute, which is a dict of numpy ndarrays::
 
   print(remote_file["group"].attrs["attribute_name"])
