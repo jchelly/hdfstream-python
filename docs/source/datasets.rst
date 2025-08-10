@@ -14,13 +14,16 @@ contents. E.g. to read the full dataset::
 This will generate a http request to the server if the dataset was too
 large to be downloaded with the group metadata. For large datasets (or
 on slow internet connections!) you will see a progress bar while the
-data is downloaded.
+data is downloaded. All responses from the server are streamed to the
+client in chunks, so arbitrarily large dataset slices can be
+downloaded given enough time and network bandwidth.
 
 Parts of datasets can be downloaded using numpy slicing syntax::
 
   partial_data = dataset[0:10]
 
-If a dataset has attributes, they can be access through the `attrs` dict::
+If a dataset has attributes, they can be accessed through the ``attrs``
+dict::
 
   print(dataset.attrs["attribute_name"])
 
