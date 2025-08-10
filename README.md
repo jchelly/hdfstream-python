@@ -10,7 +10,7 @@ https://github.com/jchelly/hdfstream-python
 
 Releases are hosted on pypi: https://pypi.org/project/hdfstream/
 
-Full documentation is in the `docs` directory and on Read the Docs.
+For documentation see: https://hdfstream-python.readthedocs.io/en/latest
 
 ## Installation
 
