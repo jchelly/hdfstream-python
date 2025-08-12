@@ -1,4 +1,4 @@
-# Python client module for HDF5 streaming service
+# Python client module for the hdfstream HDF5 streaming service
 
 This module provides facilities to access HDF5 files stored on a
 remote server which streams their contents in messagepack format. It
