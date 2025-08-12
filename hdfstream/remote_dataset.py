@@ -10,11 +10,11 @@ class RemoteDataset:
     dataset, index the parent RemoteGroup or RemoteFile object. The class
     constructor documented here is used to implement lazy loading of HDF5
     metadata and should not usually be called directly.
-    
+
     Indexing a RemoteDataset with numpy style slicing yields a numpy array
     with the dataset contents. Slices must be contiguous ranges. Indexing
     with an array is not supported.
-    
+
     :type connection: hdfstream.connection.Connection
     :param connection: connection object which stores http session information
     :param file_path: virtual path of the file containing the dataset
@@ -153,7 +153,7 @@ class RemoteDataset:
         This differs from h5py's Dataset.read_direct() in that no type
         conversion is done. The output array must have the same dtype as the
         dataset.
-        
+
         :param array: output array which will receive the data
         :type array: np.ndarray
         :param source_sel: selection in the source dataset as a numpy slice, defaults to None
@@ -167,8 +167,8 @@ class RemoteDataset:
             dest_sel = Ellipsis
         slice_string, _ = self._make_slice_string(source_sel)
 
-        # Get a flattened view of the destination selection, making sure we do not make a copy
-        dest_view = array[dest_sel].reshape(-1)
+        # Get a view of the destination selection, making sure we do not make a copy
+        dest_view = array[dest_sel]
         if not dest_view.flags['C_CONTIGUOUS']:
             raise RuntimeError("Destination for read_direct() must be C contiguous")
         if not np.shares_memory(dest_view, array):
@@ -204,7 +204,7 @@ class RemoteDataset:
 
         If the optional dest parameter is used the result is written to dest.
         Otherwise a new np.ndarray is returned.
-        
+
         :param keys: list of slices to read
         :type keys: list of slices
         :param dest: destination buffer to write to, defaults to None
@@ -225,7 +225,5 @@ class RemoteDataset:
             return data.reshape(result_dims)
         else:
             # Download the data into the supplied destination array's buffer
-            if not dest.flags['C_CONTIGUOUS']:
-                raise RuntimeError("Destination for read_direct() must be C contiguous")
             self.connection.request_slice_into(self.file_path, self.name, slice_string, dest)
 

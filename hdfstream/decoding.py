@@ -184,15 +184,26 @@ def decode_ndarray(stream, desc, progress, destination=None):
     nr_bins = unpacker.read_array_header()
 
     # Get ndarray metadata
-    shape = map_keys["shape"]
-    dtype = map_keys["type"]
-    nbytes = map_keys["nbytes"]
+    shape = tuple(int(s) for s in map_keys["shape"])
+    dtype = np.dtype(map_keys["type"])
+    nbytes = int(map_keys["nbytes"])
+    size = 1
+    for s in shape:
+        size *= s
 
     # Create the buffer if necessary
     if destination is None:
-        buf = memoryview(np.empty(nbytes, dtype=np.uint8)).cast("B")
+        result = np.empty(shape, dtype=dtype)
     else:
-        buf = memoryview(destination).cast("B")
+        # If a buffer was supplied, check that it's suitable
+        if not destination.flags['C_CONTIGUOUS']:
+            raise RuntimeError("Destination buffer must be C contiguous")
+        if destination.size != size or destination.dtype != dtype:
+            raise RuntimeError("Destination buffer must have the same size and dtype as the response")
+        result = destination
+
+    # Get a view of the buffer as a flat array of bytes
+    buf = memoryview(result.reshape(-1)).cast("B")
 
     # And check that the buffer is the right size
     if buf.nbytes != nbytes:
@@ -220,9 +231,4 @@ def decode_ndarray(stream, desc, progress, destination=None):
     if len(stream.read(1)) != 0:
         raise RuntimeError("Unexpected extra data at end of stream!")
 
-    if destination is None:
-        # Wrap the buffer in a suitable ndarray and return it
-        return np.frombuffer(buf, dtype=dtype).reshape(shape)
-    else:
-        # Already wrote the result to the destination buffer
-        return None
+    return result
