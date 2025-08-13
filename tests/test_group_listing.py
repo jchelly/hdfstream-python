@@ -38,7 +38,7 @@ def test_root_group_listing(mock_api):
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
 
-    # Open a snashot file
+    # Open a snapshot file
     filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
     snap_file = root[filename]
 
@@ -54,7 +54,7 @@ def test_parttype1_group_listing(mock_api):
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
 
-    # Open a snashot file
+    # Open a snapshot file
     filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
     snap_file = root[filename]
 

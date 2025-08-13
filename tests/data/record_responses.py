@@ -45,3 +45,8 @@ get_and_store("responses/EAGLE_snap_ptype1.dat.gz", path, params={"object":"/Par
 
 # Store snapshot header with attributes
 get_and_store("responses/EAGLE_snap_header.dat.gz", path, params={"object":"/Header", "max_depth":"1", "data_size_limit":"65536"})
+
+# Slice a dataset
+get_and_store("responses/EAGLE_snap_ptype1_slice1.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"0:1000,0:3",})
+get_and_store("responses/EAGLE_snap_ptype1_slice2.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"500:501,0:3",})
+get_and_store("responses/EAGLE_snap_ptype1_slice3.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"910:920,0:3",})
