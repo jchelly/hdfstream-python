@@ -78,7 +78,7 @@ def test_group_attributes(mock_api):
 
     # Open a HDF5 group and check its attributes:
     # Here we compare values decoded from the mock http response to pickled
-    # test data stored alongside the source code.
+    # test data which was extracted from the snapshot with h5py.
     header = snap_file["/Header"]
     assert set(header.attrs.keys()) == set(snap_data["header"].keys())
     for name in header.attrs.keys():
