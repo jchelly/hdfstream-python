@@ -85,7 +85,8 @@ class Connection:
 
         # Set up a session with the username and password
         self.session = requests.Session()
-        self.session.auth = HTTPBasicAuth(user, password)
+        if user is not None:
+            self.session.auth = HTTPBasicAuth(user, password)
 
         # Test by fetching a root directory listing
         with _maybe_suppress_cert_warnings():
