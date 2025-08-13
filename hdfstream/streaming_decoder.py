@@ -105,15 +105,15 @@ class StreamingDecoder:
         # Determine the size of the bin object
         if self.buf[0] == 0xc4:
             # One byte length
-            nr_bytes = int(np.void(self.buf[1:2]).view(be_uint8))
+            nr_bytes = int(np.void(self.buf[1:2]).view(be_uint8)[0])
             self.skip(2)
         elif self.buf[0] == 0xc5:
             # Two byte length
-            nr_bytes = int(np.void(self.buf[1:3]).view(be_uint16))
+            nr_bytes = int(np.void(self.buf[1:3]).view(be_uint16)[0])
             self.skip(3)
         elif self.buf[0] == 0xc6:
             # Four byte length
-            nr_bytes = int(np.void(self.buf[1:5]).view(be_uint32))
+            nr_bytes = int(np.void(self.buf[1:5]).view(be_uint32)[0])
             self.skip(5)
         else:
             raise RuntimeError("Next msgpack object is not a msgpack_bin!")
