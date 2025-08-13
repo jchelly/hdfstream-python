@@ -1,33 +1,10 @@
 #!/bin/env python
 
 import responses
-import gzip
-import pickle
-import pytest
-
-# Files with dummy http response data
-filenames = [
-    "root_listing.dat.gz",
-    "EAGLE_dir_listing.dat.gz",
-    "EAGLE_FM_dir_listing.dat.gz",
-    "EAGLE_snap_listing.dat.gz",
-    ]
-
-# Read files and set up as responses
-response_data = []
-for filename in filenames:
-    with gzip.open("./tests/data/responses/"+filename, "rb") as f:
-        response_data.append(pickle.load(f))
-
-@pytest.fixture
-def mock_api():
-    with responses.RequestsMock() as rsps:
-        for data in response_data:
-            responses.add(**data)
-        yield rsps
+from dummy_requests import mock_responses
 
 @responses.activate
-def test_root_listing(mock_api):
+def test_root_listing(mock_responses):
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -38,7 +15,7 @@ def test_root_listing(mock_api):
     assert len(root.directories) == 2
 
 @responses.activate
-def test_eagle_dir_listing(mock_api):
+def test_eagle_dir_listing(mock_responses):
 
     import hdfstream
     eagle_dir = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/EAGLE")
@@ -53,7 +30,7 @@ def test_eagle_dir_listing(mock_api):
     assert set(fm_dir.directories.keys()) == expected_dirs
 
 @responses.activate
-def test_eagle_file_listing(mock_api):
+def test_eagle_file_listing(mock_responses):
 
     import hdfstream
     snap_dir = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream",

@@ -1,39 +1,12 @@
 #!/bin/env python
 
-import numpy as np
 import responses
-import gzip
-import pickle
-import pytest
+import numpy as np
 
-# Files with dummy http response data
-filenames = [
-    "root_listing.dat.gz",
-    "EAGLE_snap_listing.dat.gz",
-    "EAGLE_snap_file.dat.gz",
-    "EAGLE_snap_root.dat.gz",
-    "EAGLE_snap_ptype1.dat.gz",
-    ]
-
-# Read files and set up as responses
-response_data = []
-for filename in filenames:
-    with gzip.open("./tests/data/responses/"+filename, "rb") as f:
-        response_data.append(pickle.load(f))
-
-# Read snapshot data
-with gzip.open("./tests/data/snapshot/eagle_snap_data.dat.gz", "rb") as f:
-    snap_data = pickle.load(f)
-
-@pytest.fixture
-def mock_api():
-    with responses.RequestsMock() as rsps:
-        for data in response_data:
-            responses.add(**data)
-        yield rsps
+from dummy_requests import mock_responses, snap_data
 
 @responses.activate
-def test_root_group_listing(mock_api):
+def test_root_group_listing(mock_responses):
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -49,7 +22,7 @@ def test_root_group_listing(mock_api):
     assert set(root_group.keys()) == expected_groups
 
 @responses.activate
-def test_parttype1_group_listing(mock_api):
+def test_parttype1_group_listing(mock_responses):
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -67,7 +40,7 @@ def test_parttype1_group_listing(mock_api):
         assert isinstance(ptype1[name], hdfstream.RemoteDataset)
 
 @responses.activate
-def test_group_attributes(mock_api):
+def test_group_attributes(mock_responses):
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
