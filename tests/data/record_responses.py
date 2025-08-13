@@ -42,3 +42,6 @@ path="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p00
 get_and_store("responses/EAGLE_snap_file.dat.gz", path)
 get_and_store("responses/EAGLE_snap_root.dat.gz", path, params={"object":"/", "max_depth":"1", "data_size_limit":"65536"})
 get_and_store("responses/EAGLE_snap_ptype1.dat.gz", path, params={"object":"/PartType1", "max_depth":"1", "data_size_limit":"65536"})
+
+# Store snapshot header with attributes
+get_and_store("responses/EAGLE_snap_header.dat.gz", path, params={"object":"/Header", "max_depth":"1", "data_size_limit":"65536"})
