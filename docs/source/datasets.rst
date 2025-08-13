@@ -1,9 +1,9 @@
 HDF5 Datasets
 -------------
 
-Datasets are opened by indexing a RemoteFile or RemoteGroup object::
+Datasets are opened via the parent RemoteFile or RemoteGroup object::
 
-  dataset = remote_file["dataset_name"]
+  dataset = remote_file["group_name/dataset_name"]
 
 This returns a :py:class:`hdfstream.RemoteDataset`. Using numpy style
 slicing on a remote dataset returns a numpy array with the dataset
@@ -27,6 +27,7 @@ dict::
 
   print(dataset.attrs["attribute_name"])
 
-Remote datasets implement a few methods to provide limited compatibility
-with h5py. See the :py:class:`hdfstream.RemoteDataset` API reference for
-details.
+Remote datasets implement some of the same methods as a h5py.Dataset,
+so they can be used in place of a h5py.Dataset in some
+circumstances. See the :py:class:`hdfstream.RemoteDataset` API
+reference for details.

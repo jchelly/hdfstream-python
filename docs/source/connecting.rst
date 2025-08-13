@@ -9,6 +9,6 @@ using the :py:func:`hdfstream.open` function::
   import hdfstream
   root = hdfstream.open("https://localhost:8443/hdfstream", "/")
 
-In this case we're assuming that the server is running locally and
-requesting a root directory listing. This command returns a
-:py:class:`hdfstream.RemoteDirectory` object.
+Here, the first parameter is the server URL and the second is the
+virtual directory on the server which we'd like to access. This
+command returns a :py:class:`hdfstream.RemoteDirectory` object.

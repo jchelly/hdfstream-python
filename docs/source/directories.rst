@@ -16,9 +16,10 @@ We can list just the files in the directory with the ``files`` property::
 and list just the directories with the ``directories`` property::
 
   print(remote_dir.directories)
-  
-Files and sub-directories can be opened by indexing with the relative
-path of the file or directory we're interested in. E.g. we can use::
+
+Files and sub-directories can be opened by subscripting the directory
+with the relative path of the file or directory we're interested
+in. E.g. we can use::
 
   subsubdir = remote_dir["subdir_name/subsubdir_name"]
 

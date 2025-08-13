@@ -15,7 +15,7 @@ can be created by indexing numpy's built in ``np.s_`` object. For
 example::
 
   import numpy as np
-  
+
   slices = []
   slices.append(np.s_[10:20,:])
   slices.append(np.s_[50:60,:])

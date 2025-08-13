@@ -35,8 +35,7 @@ of the directory to open. This returns a RemoteDirectory object.
 
 The RemoteDirectory behaves like a python dictionary where the keys
 are the names of files and subdirectories within the directory. A file
-or subdirectory can be opened by indexing the RemoteDirectory. For
-example:
+or subdirectory can be opened by like this:
 ```
 # Open a HDF5 file
 snap_file = root["EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000/snap_028_z000p000.0.hdf5"]
@@ -45,7 +44,8 @@ which opens the specified file and returns a RemoteFile object.
 
 ### Reading datasets
 
-We can read a dataset by indexing the file:
+The file object acts like a dictionary containing HDF5 groups and
+datasets, so we can read a dataset as follows:
 ```
 # Read all dark matter particle positions in the file
 dm_pos = snap_file["PartType1/Coordinates"][...]
