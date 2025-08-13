@@ -36,3 +36,9 @@ get_and_store("responses/root_listing.dat.gz", "/")
 get_and_store("responses/EAGLE_dir_listing.dat.gz", "/EAGLE")
 get_and_store("responses/EAGLE_FM_dir_listing.dat.gz", "/EAGLE/Fiducial_models")
 get_and_store("responses/EAGLE_snap_listing.dat.gz", "/EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000")
+
+# Store some group listings
+path="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
+get_and_store("responses/EAGLE_snap_file.dat.gz", path)
+get_and_store("responses/EAGLE_snap_root.dat.gz", path, params={"object":"/", "max_depth":"1", "data_size_limit":"65536"})
+get_and_store("responses/EAGLE_snap_ptype1.dat.gz", path, params={"object":"/PartType1", "max_depth":"1", "data_size_limit":"65536"})
