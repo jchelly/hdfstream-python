@@ -214,7 +214,7 @@ class RemoteDirectory(collections.abc.Mapping):
         Return a {name : RemoteDirectory} dict of sub-directories in this directory
 
         :rtype: dict
-        """        
+        """
         self._load()
         return self._directories
 
