@@ -16,6 +16,8 @@ filenames = [
     "EAGLE_snap_ptype1_slice1.dat.gz",
     "EAGLE_snap_ptype1_slice2.dat.gz",
     "EAGLE_snap_ptype1_slice3.dat.gz",
+    "EAGLE_snap_ptype1_multislice1.dat.gz",
+    "EAGLE_snap_ptype1_multislice2.dat.gz",
     "EAGLE_snap_root.dat.gz",
     "root_listing.dat.gz",
     ]

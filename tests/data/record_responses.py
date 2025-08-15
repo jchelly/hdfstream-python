@@ -50,3 +50,7 @@ get_and_store("responses/EAGLE_snap_header.dat.gz", path, params={"object":"/Hea
 get_and_store("responses/EAGLE_snap_ptype1_slice1.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"0:1000,0:3",})
 get_and_store("responses/EAGLE_snap_ptype1_slice2.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"500:501,0:3",})
 get_and_store("responses/EAGLE_snap_ptype1_slice3.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"910:920,0:3",})
+
+# Request multiple slices of a dataset
+get_and_store("responses/EAGLE_snap_ptype1_multislice1.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"0:500,0:3;500:1000,0:3",})
+get_and_store("responses/EAGLE_snap_ptype1_multislice2.dat.gz", path, params={"object":"/PartType1/Coordinates", "slice":"300:400,0:3;600:700,0:3",})
