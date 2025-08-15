@@ -62,8 +62,20 @@ print(snap_file["Header"].attrs)
 
 ## Building the documentation
 
+To make a local copy of the documentation in html format:
 ```
 pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
 cd docs
 make html
 ```
+
+## Testing
+
+There are some basic unit tests which can be run without access to a
+server. The repository includes a few pre-recorded responses from the
+server and a small amount of simulation data to check that the module
+can decode responses correctly. The tests can be run by running
+`pytest` in the source directory.
+
+The scripts in `tests/data` can be used to regenerate the test data
+files if necessary.

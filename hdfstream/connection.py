@@ -85,7 +85,8 @@ class Connection:
 
         # Set up a session with the username and password
         self.session = requests.Session()
-        self.session.auth = HTTPBasicAuth(user, password)
+        if user is not None:
+            self.session.auth = HTTPBasicAuth(user, password)
 
         # Test by fetching a root directory listing
         with _maybe_suppress_cert_warnings():
@@ -121,6 +122,7 @@ class Connection:
         """
         Request the msgpack representation of a file or directory from the server
         """
+        path = path.lstrip("/")
         url = f"{self.server}/msgpack/{path}"
         return self.get_and_unpack(url, desc=f"Path: {path}")
 
@@ -128,6 +130,7 @@ class Connection:
         """
         Request the msgpack representation of a HDF5 object from the server
         """
+        path = path.lstrip("/")
         params = {
             "object" : name,
             "data_size_limit" : data_size_limit,
@@ -140,6 +143,7 @@ class Connection:
         """
         Request a dataset slice. Returns a new np.ndarray.
         """
+        path = path.lstrip("/")
         params = {
             "object" : name,
             "slice"  : slice_string,
@@ -153,6 +157,7 @@ class Connection:
 
         Will only work for fixed length data types.
         """
+        path = path.lstrip("/")
         params = {
             "object" : name,
             "slice"  : slice_string,
@@ -167,6 +172,7 @@ class Connection:
         """
         Open the file at the specified virtual path
         """
+        path = path.lstrip("/")
         url = f"{self.server}/download/{path}"
 
         with _maybe_suppress_cert_warnings():

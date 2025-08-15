@@ -16,7 +16,7 @@ class RemoteFile(collections.abc.Mapping):
 
     Indexing a RemoteFile with a HDF5 object name will yield a RemoteGroup or
     RemoteDataset object, if the file is a HDF5 file.
-    
+
     :type connection: hdfstream.connection.Connection
     :param connection: connection object which stores http session information
     :param file_path: virtual path of the file

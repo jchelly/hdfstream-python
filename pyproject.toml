@@ -16,6 +16,7 @@ dependencies = [
     "msgpack",
     "msgpack-numpy",
     "tqdm",
+    "responses",
     "pytest"
 ]
 readme = "README.md"
