@@ -1,10 +1,9 @@
 #!/bin/env python
 
-import responses
-from dummy_requests import mock_responses
+import pytest
 
-@responses.activate
-def test_root_listing(mock_responses):
+@pytest.mark.vcr
+def test_root_listing():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -14,8 +13,8 @@ def test_root_listing(mock_responses):
     assert len(root.files) == 0
     assert len(root.directories) == 2
 
-@responses.activate
-def test_eagle_dir_listing(mock_responses):
+@pytest.mark.vcr
+def test_eagle_dir_listing():
 
     import hdfstream
     eagle_dir = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/EAGLE")
@@ -29,8 +28,8 @@ def test_eagle_dir_listing(mock_responses):
                          "RefL0050N0752", "AGNdT9L0050N0752", "RefL0100N1504"])
     assert set(fm_dir.directories.keys()) == expected_dirs
 
-@responses.activate
-def test_eagle_file_listing(mock_responses):
+@pytest.mark.vcr
+def test_eagle_file_listing():
 
     import hdfstream
     snap_dir = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream",
