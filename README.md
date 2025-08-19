@@ -77,5 +77,8 @@ server and a small amount of simulation data to check that the module
 can decode responses correctly. The tests can be run by running
 `pytest` in the source directory.
 
-The scripts in `tests/data` can be used to regenerate the test data
-files if necessary.
+To regenerate the stored responses, assuming the server is available:
+```
+rm -r ./tests/cassettes/
+pytest --record-mode=once
+```

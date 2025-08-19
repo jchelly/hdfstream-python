@@ -1,12 +1,11 @@
 #!/bin/env python
 
-import responses
 import numpy as np
+import pytest
+from test_data import snap_data
 
-from dummy_requests import mock_responses, snap_data
-
-@responses.activate
-def test_root_group_listing(mock_responses):
+@pytest.mark.vcr
+def test_root_group_listing():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -21,8 +20,8 @@ def test_root_group_listing(mock_responses):
                            "PartType0","PartType1","RuntimePars","Units"])
     assert set(root_group.keys()) == expected_groups
 
-@responses.activate
-def test_parttype1_group_listing(mock_responses):
+@pytest.mark.vcr
+def test_parttype1_group_listing():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -39,8 +38,8 @@ def test_parttype1_group_listing(mock_responses):
     for name in ptype1.keys():
         assert isinstance(ptype1[name], hdfstream.RemoteDataset)
 
-@responses.activate
-def test_group_attributes(mock_responses):
+@pytest.mark.vcr
+def test_group_attributes():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -57,8 +56,8 @@ def test_group_attributes(mock_responses):
     for name in header.attrs.keys():
         assert np.all(header.attrs[name] == snap_data["header"][name])
 
-@responses.activate
-def test_parttype1_group_visit(mock_responses):
+@pytest.mark.vcr
+def test_parttype1_group_visit():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -77,8 +76,8 @@ def test_parttype1_group_visit(mock_responses):
                             "SubGroupNumber", "Velocity"])
     assert set(members) == expected_datasets
 
-@responses.activate
-def test_parttype1_group_visititems(mock_responses):
+@pytest.mark.vcr
+def test_parttype1_group_visititems():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")

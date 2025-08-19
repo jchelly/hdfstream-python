@@ -1,12 +1,11 @@
 #!/bin/env python
 
-import responses
 import numpy as np
+import pytest
+from test_data import snap_data
 
-from dummy_requests import mock_responses, snap_data
-
-@responses.activate
-def test_dataset_attributes(mock_responses):
+@pytest.mark.vcr
+def test_dataset_attributes():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -25,8 +24,8 @@ def test_dataset_attributes(mock_responses):
     for name in dataset.attrs.keys():
         assert np.all(dataset.attrs[name] == snap_data["ptype1_pos_attrs"][name])
 
-@responses.activate
-def test_dataset_slice(mock_responses):
+@pytest.mark.vcr
+def test_dataset_slice():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
@@ -58,8 +57,8 @@ def test_dataset_slice(mock_responses):
         dataset.read_direct(slice_data, source_sel=np.s_[start:stop,:], dest_sel=np.s_[...])
         assert np.all(slice_data == expected_pos[start:stop,:])
 
-@responses.activate
-def test_dataset_multi_slice(mock_responses):
+@pytest.mark.vcr
+def test_dataset_multi_slice():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
