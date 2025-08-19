@@ -19,7 +19,7 @@ def open(server, name, user=None, password=None, max_depth=max_depth_default,
     Connect to the server and return a RemoteDirectory or RemoteFile
     corresponding to the specified virtual path. If a user name is specified
     with no password, prompt for the password.
-    
+
     :param server: URL of the server to connect to
     :type server: String
     :param name: path to the virtual file or directory on the server
