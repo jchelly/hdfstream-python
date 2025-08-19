@@ -16,8 +16,8 @@ dependencies = [
     "msgpack",
     "msgpack-numpy",
     "tqdm",
-    "responses",
-    "pytest"
+    "pytest",
+    "pytest-recording",
 ]
 readme = "README.md"
 classifiers = [
