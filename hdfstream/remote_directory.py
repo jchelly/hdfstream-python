@@ -42,13 +42,13 @@ class RemoteDirectory(collections.abc.Mapping):
     RemoteDirectory or a RemoteFile.
 
     :param server: URL of the server
-    :type server: String
+    :type server: str
     :param name: virtual path of the directory to open, defaults to "/"
-    :type name: String
+    :type name: str
     :param user: name of the user account for login, defaults to None
-    :type user: String, optional
+    :type user: str, optional
     :param password: password for login, defaults to None
-    :type password: String, optional
+    :type password: str, optional
     :param data: decoded msgpack data describing the directory, defaults to None
     :type data: dict, optional
     :param max_depth: maximum recursion depth for group metadata requests
@@ -229,9 +229,9 @@ class RemoteDirectory(collections.abc.Mapping):
         is accepted.
 
         :param filename: path of the file to open
-        :type filename: String
+        :type filename: str
         :param mode: mode to open the file, defaults to "r"
-        :type mode: String
+        :type mode: str
 
         :rtype: hdfstream.RemoteFile
         """
@@ -253,7 +253,7 @@ class RemoteDirectory(collections.abc.Mapping):
         Return True if the specified file is a HDF5 file, False otherwise
 
         :param filename: name of the file to check
-        :type filename: String
+        :type filename: str
 
         :rtype: bool
         """

@@ -18,9 +18,9 @@ class RemoteDataset:
     :param connection: connection object which stores http session information
     :type connection: hdfstream.connection.Connection
     :param file_path: virtual path of the file containing the dataset
-    :type file_path: String
+    :type file_path: str
     :param name: name of the HDF5 dataset
-    :type name: String
+    :type name: str
     :param data: decoded msgpack data describing the dataset, defaults to None
     :type data: dict, optional
     :param parent: parent HDF5 group, defaults to None
