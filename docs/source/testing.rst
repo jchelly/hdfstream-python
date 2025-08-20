@@ -45,11 +45,11 @@ functions to enable recording of http responses. E.g.::
 To run the unit tests in a "live" mode where real http requests are
 made and the responses are recorded:
 
-  pytest --record-mode=once
+  pytest --record-mode=rewrite
 
-This will create a ``cassettes`` directory with the encoded
-responses. After that the unit tests can be run in offline mode with
-just::
+This will create a ``cassettes`` directory with the encoded responses,
+overwriting any existing data. After that the unit tests can be run in
+offline mode with just::
 
   pytest
 
