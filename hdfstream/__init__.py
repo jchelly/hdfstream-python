@@ -1,7 +1,8 @@
 #!/bin/env python
 
 __all__ = ["verify_cert", "disable_progress", "set_progress_delay", "open",
-           "RemoteDirectory", "RemoteFile", "RemoteGroup", "RemoteDataset"]
+           "RemoteDirectory", "RemoteFile", "RemoteGroup", "RemoteDataset",
+           "testing"]
 
 from hdfstream.exceptions import HDFStreamRequestError
 from hdfstream.connection import Connection, verify_cert
@@ -19,15 +20,15 @@ def open(server, name, user=None, password=None, max_depth=max_depth_default,
     Connect to the server and return a RemoteDirectory or RemoteFile
     corresponding to the specified virtual path. If a user name is specified
     with no password, prompt for the password.
-    
+
     :param server: URL of the server to connect to
-    :type server: String
+    :type server: str
     :param name: path to the virtual file or directory on the server
-    :type name: String
+    :type name: str
     :param user: name of the user account for login, defaults to None
-    :type user: String, optional
+    :type user: str, optional
     :param password: password for login, defaults to None
-    :type password: String, optional
+    :type password: str, optional
     :param max_depth: maximum recursion depth for group metadata requests
     :type max_depth: int, optional
     :param data_size_limit: max. dataset size (bytes) to download with metadata

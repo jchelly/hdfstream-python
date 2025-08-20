@@ -31,9 +31,9 @@ class RemoteGroup(collections.abc.Mapping):
     :type connection: hdfstream.connection.Connection
     :param connection: connection object which stores http session information
     :param file_path: virtual path of the file containing the group
-    :type file_path: String
+    :type file_path: str
     :param name: name of the HDF5 group
-    :type name: String
+    :type name: str
     :param max_depth: maximum recursion depth for group metadata requests
     :type max_depth: int, optional
     :param data_size_limit: max. dataset size (bytes) to be downloaded with metadata
