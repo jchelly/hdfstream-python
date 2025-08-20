@@ -26,4 +26,5 @@ See the links below for usage information and the API reference.
    datasets
    multi_slice
    lazy_loading
+   testing
    api

@@ -15,8 +15,8 @@ class RemoteDataset:
     with the dataset contents. Slices must be contiguous ranges. Indexing
     with an array is not supported.
 
-    :type connection: hdfstream.connection.Connection
     :param connection: connection object which stores http session information
+    :type connection: hdfstream.connection.Connection
     :param file_path: virtual path of the file containing the dataset
     :type file_path: String
     :param name: name of the HDF5 dataset
