@@ -13,7 +13,9 @@ sys.path.insert(0, os.path.abspath('../../'))
 project = 'hdfstream'
 copyright = '2025, John Helly'
 author = 'John Helly'
-release = '0.0.11'
+
+from setuptools_scm import get_version
+release = get_version(root="../..", relative_to=__file__)
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

@@ -4,4 +4,4 @@ msgpack
 msgpack-numpy
 tqdm
 pytest
-responses
+pytest-recording

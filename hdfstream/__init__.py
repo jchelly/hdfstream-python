@@ -4,6 +4,14 @@ __all__ = ["verify_cert", "disable_progress", "set_progress_delay", "open",
            "RemoteDirectory", "RemoteFile", "RemoteGroup", "RemoteDataset",
            "testing"]
 
+
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("hdfstream")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
+
 from hdfstream.exceptions import HDFStreamRequestError
 from hdfstream.connection import Connection, verify_cert
 from hdfstream.decoding import disable_progress, set_progress_delay
