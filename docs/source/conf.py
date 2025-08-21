@@ -14,8 +14,9 @@ project = 'hdfstream'
 copyright = '2025, John Helly'
 author = 'John Helly'
 
-from setuptools_scm import get_version
-release = get_version(root="../..", relative_to=__file__)
+from importlib.metadata import version
+release = version('hdfstream')
+version = '.'.join(release.split('.')[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
