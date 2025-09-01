@@ -20,18 +20,27 @@ with h5py.File(filename, "r") as snap:
     for name in header.attrs:
         header_data[name] = header.attrs[name]
 
-    # Read some particle data
+    # Read particle positions
     ptype1_pos = snap["PartType1/Coordinates"]
     ptype1_pos_data = ptype1_pos[:n,:]
     ptype1_pos_attrs = {}
     for name in ptype1_pos.attrs:
         ptype1_pos_attrs[name] = ptype1_pos.attrs[name]
 
+    # Read particle velocities
+    ptype1_vel = snap["PartType1/Velocity"]
+    ptype1_vel_data = ptype1_vel[:n,:]
+    ptype1_vel_attrs = {}
+    for name in ptype1_vel.attrs:
+        ptype1_vel_attrs[name] = ptype1_vel.attrs[name]
+
 # Store the result
 data = {
     "header" : header_data,
     "ptype1_pos" : ptype1_pos_data,
     "ptype1_pos_attrs" : ptype1_pos_attrs,
+    "ptype1_vel" : ptype1_vel_data,
+    "ptype1_vel_attrs" : ptype1_vel_attrs,
 }
 
 with gzip.open("snapshot/eagle_snap_data.dat.gz", "wb") as f:

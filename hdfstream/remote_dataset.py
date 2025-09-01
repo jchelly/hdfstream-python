@@ -150,9 +150,8 @@ class RemoteDataset:
         only works for fixed length types (e.g. integer or floating
         point data).
 
-        This differs from h5py's Dataset.read_direct() in that no type
-        conversion is done. The output array must have the same dtype as the
-        dataset.
+        Copies the data if the destination array does not have the same data
+        type as the dataset.
 
         :param array: output array which will receive the data
         :type array: np.ndarray
@@ -174,8 +173,14 @@ class RemoteDataset:
         if not np.shares_memory(dest_view, array):
             raise RuntimeError("Unable to read directly into specified selection")
 
-        # Request the data
-        self.connection.request_slice_into(self.file_path, self.name, slice_string, dest_view)
+        if array.dtype == self.dtype:
+            # The data types match, so we can download directly into the destination buffer
+            self.connection.request_slice_into(self.file_path, self.name, slice_string, dest_view)
+        else:
+            # The data types are different, so we have to make a copy and let numpy convert the values
+            if not np.can_cast(self.dtype, array.dtype, casting='safe'):
+                raise RuntimeError("Cannot safely cast {self.dtype} to {array.dtype}")
+            dest_view[...] = self.connection.request_slice(self.file_path, self.name, slice_string)
 
     def __len__(self):
         if len(self.shape) >= 1:
