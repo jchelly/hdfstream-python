@@ -1,6 +1,6 @@
 #!/bin/env python
 
-class SoftLink():
+class SoftLink:
     """
     This class represents a soft link in a HDF5 file. It's just a container
     for a single string with the link target path.
@@ -15,3 +15,6 @@ class SoftLink():
 
     def __repr__(self):
         return f'<Soft link to "{self.path}">'
+
+class HardLink:
+    pass
