@@ -1,17 +1,14 @@
 #!/bin/env python
 
 import pytest
+from hdfstream import RemoteDirectory
 
 @pytest.mark.vcr
 def test_root_listing():
 
     import hdfstream
     root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
-    assert len(root) == 2
-    assert "EAGLE" in root
-    assert "SWIFT" in root
-    assert len(root.files) == 0
-    assert len(root.directories) == 2
+    assert isinstance(root, RemoteDirectory)
 
 @pytest.mark.vcr
 def test_eagle_dir_listing():

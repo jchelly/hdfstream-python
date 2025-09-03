@@ -3,16 +3,16 @@
 import numpy as np
 import pytest
 from test_data import snap_data
+import hdfstream
+
+@pytest.fixture
+def snap_file():
+    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/", data_size_limit=0)
+    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
+    return root[filename]
 
 @pytest.mark.vcr
-def test_dataset_attributes():
-
-    import hdfstream
-    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
-
-    # Open a snapshot file
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
-    snap_file = root[filename]
+def test_dataset_attributes(snap_file):
 
     # Open a HDF5 dataset and check its attributes:
     # Here we compare values decoded from the mock http response to pickled
@@ -25,14 +25,7 @@ def test_dataset_attributes():
         assert np.all(dataset.attrs[name] == snap_data["ptype1_pos_attrs"][name])
 
 @pytest.mark.vcr
-def test_dataset_slice():
-
-    import hdfstream
-    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
-
-    # Open a snapshot file
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
-    snap_file = root[filename]
+def test_dataset_slice(snap_file):
 
     # Open a HDF5 dataset
     dataset = snap_file["/PartType1/Coordinates"]
@@ -58,14 +51,7 @@ def test_dataset_slice():
         assert np.all(slice_data == expected_pos[start:stop,:])
 
 @pytest.mark.vcr
-def test_dataset_multi_slice():
-
-    import hdfstream
-    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
-
-    # Open a snapshot file
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
-    snap_file = root[filename]
+def test_dataset_multi_slice(snap_file):
 
     # Open a HDF5 dataset
     dataset = snap_file["/PartType1/Coordinates"]
