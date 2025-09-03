@@ -1,12 +1,9 @@
 #!/bin/env python
 
-import collections.abc
-
-
 class SoftLink():
     """
-    This class represents a soft link in a HDF5 file. It's really just a
-    container for a single string with the link target path.
+    This class represents a soft link in a HDF5 file. It's just a container
+    for a single string with the link target path.
 
     :param data: decoded msgpack data describing the link
     :type data: dict, optional

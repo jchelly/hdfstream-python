@@ -142,6 +142,10 @@ class RemoteGroup(collections.abc.Mapping):
         self._ensure_member_loaded(member_name)
         member_object = self.members[member_name]
 
+        # If we've encountered a soft link, dereference it
+        if isinstance(member_object, SoftLink):
+            member_object = self[member_object.target]
+
         if rest_of_path is None:
             # No separator in key, so path specifies a member of this group
             return member_object
