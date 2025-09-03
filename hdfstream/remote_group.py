@@ -57,6 +57,12 @@ class RemoteGroup(collections.abc.Mapping):
         self.unpacked = False
         self._parent = parent
 
+        # Keep a link to the root group
+        if name == "/":
+            self._root = self
+        elif parent is not None:
+            self._root = parent._root
+
         # If msgpack data was supplied, decode it. If not, we'll wait until
         # we actually need the data before we request it from the server.
         if data is not None:
@@ -108,27 +114,27 @@ class RemoteGroup(collections.abc.Mapping):
             object_name = self.name+"/"+key
             self.members[key] = RemoteGroup(self.connection, self.file_path, object_name, self.max_depth, self.data_size_limit, parent=self)
 
-    def __getitem__(self, key):
+    def _get(self, key):
         """
-        Return a member object identified by its name or relative path.
+        Return a member object identified by its name or path.
 
         If the key is a path with multiple components we use the first
         component to identify a member object to pass the rest of the path to.
         """
-        self._load()
 
-        # Absolute paths need special treatment.
+        # Handle absolute paths: convert to a relative path then look them
+        # up in the root group
         if key.startswith("/"):
-            if self.name != "/":
-                # Currently we can't handle passing absolute paths to sub-groups
-                # (h5py interprets absolute paths relative to the file's root group).
-                raise NotImplementedError("Passing an absolute path to a sub-group is not implemented")
-            elif key == "/":
-                # If the requested path is just "/" and this is the root, return this group
-                return self
+            key = key.lstrip("/")
+            if len(key) == 0:
+                # Path refers to the root
+                return self._root
             else:
-                # We can just ignore leading slashes in other paths if this is the root group
-                key = key.lstrip("/")
+                # Path refers to some object relative to the root
+                return self._root[key]
+
+        # Ensure this group is loaded
+        self._load()
 
         # Split the path into first component (which identifies a member of this group) and rest of path
         components = key.split("/", 1)
@@ -137,6 +143,12 @@ class RemoteGroup(collections.abc.Mapping):
             rest_of_path = components[1].lstrip("/") # ignore any extra consecutive slashes
         else:
             rest_of_path = None
+
+        # Handle the special cases of "." and ".." in a path
+        if member_name == ".":
+            return self if rest_of_path is None else self[rest_of_path]
+        elif member_name == "..":
+            return self._parent if rest_of_path is None else self._parent[rest_of_path]
 
         # Locate the specifed sub group/dataset
         self._ensure_member_loaded(member_name)
@@ -159,6 +171,9 @@ class RemoteGroup(collections.abc.Mapping):
                     return member_object
             else:
                 raise KeyError(f"Path component {components[0]} is not a group")
+
+    def __getitem__(self, key):
+        return self._get(key)
 
     def __len__(self):
         self._load()
