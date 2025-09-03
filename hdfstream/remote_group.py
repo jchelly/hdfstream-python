@@ -3,6 +3,7 @@
 import collections.abc
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
+from hdfstream.soft_link import SoftLink
 
 
 def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit, parent):
@@ -14,6 +15,8 @@ def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit
         return RemoteGroup(connection, file_path, name, max_depth, data_size_limit, data, parent)
     elif object_type == "dataset":
         return RemoteDataset(connection, file_path, name, data, parent)
+    elif object_type == "soft_link":
+        return SoftLink(data)
     else:
         raise RuntimeError("Unrecognised object type")
 
@@ -27,7 +30,7 @@ class RemoteGroup(collections.abc.Mapping):
 
     Indexing a RemoteGroup with a HDF5 object name yields a RemoteGroup or
     RemoteDataset object.
-    
+
     :type connection: hdfstream.connection.Connection
     :param connection: connection object which stores http session information
     :param file_path: virtual path of the file containing the group
