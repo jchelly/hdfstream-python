@@ -3,7 +3,7 @@
 import collections.abc
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
-from hdfstream.soft_link import SoftLink
+from hdfstream.remote_links import SoftLink
 
 
 def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit, parent):
@@ -114,7 +114,7 @@ class RemoteGroup(collections.abc.Mapping):
             object_name = self.name+"/"+key
             self.members[key] = RemoteGroup(self.connection, self.file_path, object_name, self.max_depth, self.data_size_limit, parent=self)
 
-    def _get(self, key):
+    def _get(self, key, getlink=False):
         """
         Return a member object identified by its name or path.
 
@@ -156,7 +156,7 @@ class RemoteGroup(collections.abc.Mapping):
 
         # If we've encountered a soft link, dereference it
         if isinstance(member_object, SoftLink):
-            member_object = self[member_object.target]
+            member_object = self[member_object.path]
 
         if rest_of_path is None:
             # No separator in key, so path specifies a member of this group

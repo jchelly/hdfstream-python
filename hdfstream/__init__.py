@@ -2,7 +2,7 @@
 
 __all__ = ["verify_cert", "disable_progress", "set_progress_delay", "open",
            "RemoteDirectory", "RemoteFile", "RemoteGroup", "RemoteDataset",
-           "testing"]
+           "SoftLink", "HardLink", "testing"]
 
 
 from importlib.metadata import version, PackageNotFoundError
@@ -20,7 +20,7 @@ from hdfstream.remote_file import RemoteFile
 from hdfstream.remote_group import RemoteGroup
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
-from hdfstream.soft_link import SoftLink
+from hdfstream.remote_links import SoftLink
 
 def open(server, name, user=None, password=None, max_depth=max_depth_default,
          data_size_limit=data_size_limit_default):

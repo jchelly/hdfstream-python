@@ -11,7 +11,7 @@ class SoftLink():
     def __init__(self, data):
 
         assert data["hdf5_object"] == "soft_link"
-        self.target = data["target"]
+        self.path = data["target"]
 
     def __repr__(self):
-        return f'<Soft link to "{self.target}">'
+        return f'<Soft link to "{self.path}">'
