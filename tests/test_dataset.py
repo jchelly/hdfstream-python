@@ -11,7 +11,7 @@ def test_dataset_attributes(eagle_snap_file):
     # Open a HDF5 dataset and check its attributes:
     # Here we compare values decoded from the mock http response to pickled
     # test data which was extracted from the snapshot with h5py.
-    dataset = eagle_snap_file["/PartType1/Coordinates"]
+    dataset = eagle_snap_file()["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
     assert len(dataset.attrs.keys()) > 0
     assert set(dataset.attrs.keys()) == set(snap_data["ptype1_pos_attrs"].keys())
@@ -22,7 +22,7 @@ def test_dataset_attributes(eagle_snap_file):
 def test_dataset_slice(eagle_snap_file):
 
     # Open a HDF5 dataset
-    dataset = eagle_snap_file["/PartType1/Coordinates"]
+    dataset = eagle_snap_file()["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
 
     # Locate the test data: this contains the coordinates of the first n particles
@@ -48,7 +48,7 @@ def test_dataset_slice(eagle_snap_file):
 def test_dataset_multi_slice(eagle_snap_file):
 
     # Open a HDF5 dataset
-    dataset = eagle_snap_file["/PartType1/Coordinates"]
+    dataset = eagle_snap_file()["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
 
     # Locate the test data: this contains the coordinates of the first n particles

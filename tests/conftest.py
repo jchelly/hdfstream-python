@@ -17,18 +17,16 @@ def server_url(request):
     hdfstream.verify_cert(not request.config.getoption("--no-verify-cert"))
     return request.config.getoption("--server")
 
-@pytest.fixture(scope='module')
-def eagle_snap_file(server_url):
+def open_file(server_url, filename):
     root = hdfstream.open(server_url, "/", data_size_limit=0)
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
     return root[filename]
 
 @pytest.fixture(scope='module')
+def eagle_snap_file(server_url):
+    filename = "EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
+    return lambda: open_file(server_url, filename)
+
+@pytest.fixture(scope='module')
 def swift_snap_file(server_url):
-    """
-    Open a SWIFT snapshot which contains soft links
-    """
-    import hdfstream
-    root = hdfstream.open(server_url, "/", data_size_limit=0, max_depth=0)
     filename="Tests/SWIFT/IOExamples/ssio_ci_04_2025/EagleSingle.hdf5"
-    return root[filename]
+    return lambda: open_file(server_url, filename)
