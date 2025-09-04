@@ -5,19 +5,13 @@ import pytest
 from test_data import snap_data
 import hdfstream
 
-@pytest.fixture
-def snap_file():
-    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/", data_size_limit=0)
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
-    return root[filename]
-
 @pytest.mark.vcr
-def test_dataset_attributes(snap_file):
+def test_dataset_attributes(eagle_snap_file):
 
     # Open a HDF5 dataset and check its attributes:
     # Here we compare values decoded from the mock http response to pickled
     # test data which was extracted from the snapshot with h5py.
-    dataset = snap_file["/PartType1/Coordinates"]
+    dataset = eagle_snap_file["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
     assert len(dataset.attrs.keys()) > 0
     assert set(dataset.attrs.keys()) == set(snap_data["ptype1_pos_attrs"].keys())
@@ -25,10 +19,10 @@ def test_dataset_attributes(snap_file):
         assert np.all(dataset.attrs[name] == snap_data["ptype1_pos_attrs"][name])
 
 @pytest.mark.vcr
-def test_dataset_slice(snap_file):
+def test_dataset_slice(eagle_snap_file):
 
     # Open a HDF5 dataset
-    dataset = snap_file["/PartType1/Coordinates"]
+    dataset = eagle_snap_file["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
 
     # Locate the test data: this contains the coordinates of the first n particles
@@ -51,10 +45,10 @@ def test_dataset_slice(snap_file):
         assert np.all(slice_data == expected_pos[start:stop,:])
 
 @pytest.mark.vcr
-def test_dataset_multi_slice(snap_file):
+def test_dataset_multi_slice(eagle_snap_file):
 
     # Open a HDF5 dataset
-    dataset = snap_file["/PartType1/Coordinates"]
+    dataset = eagle_snap_file["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
 
     # Locate the test data: this contains the coordinates of the first n particles

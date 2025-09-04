@@ -8,26 +8,15 @@ from test_data import snap_data
 
 
 @pytest.fixture(scope='module')
-def snap_file():
-    """
-    Open a snapshot file on the server
-    """
-    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
-    with root[filename] as f:
-        yield f
-
-
-@pytest.fixture(scope='module')
-def pos_dataset(snap_file):
-    dataset = snap_file["/PartType1/Coordinates"]
+def pos_dataset(eagle_snap_file):
+    dataset = eagle_snap_file["/PartType1/Coordinates"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
     return dataset
 
 
 @pytest.fixture(scope='module')
-def vel_dataset(snap_file):
-    dataset = snap_file["/PartType1/Velocity"]
+def vel_dataset(eagle_snap_file):
+    dataset = eagle_snap_file["/PartType1/Velocity"]
     assert isinstance(dataset, hdfstream.RemoteDataset)
     return dataset
 
