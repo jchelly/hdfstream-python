@@ -8,28 +8,21 @@ from test_data import snap_data
 
 
 @pytest.fixture(scope='module')
-def snap_file():
-    """
-    Open a snapshot file on the server
-    """
-    root = hdfstream.open("https://dataweb.cosma.dur.ac.uk:8443/hdfstream", "/")
-    filename="EAGLE/Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"
-    with root[filename] as f:
-        yield f
+def pos_dataset(eagle_snap_file):
+    def open_dataset():
+        dataset = eagle_snap_file()["/PartType1/Coordinates"]
+        assert isinstance(dataset, hdfstream.RemoteDataset)
+        return dataset
+    return open_dataset
 
 
 @pytest.fixture(scope='module')
-def pos_dataset(snap_file):
-    dataset = snap_file["/PartType1/Coordinates"]
-    assert isinstance(dataset, hdfstream.RemoteDataset)
-    return dataset
-
-
-@pytest.fixture(scope='module')
-def vel_dataset(snap_file):
-    dataset = snap_file["/PartType1/Velocity"]
-    assert isinstance(dataset, hdfstream.RemoteDataset)
-    return dataset
+def vel_dataset(eagle_snap_file):
+    def open_dataset():
+        dataset = eagle_snap_file()["/PartType1/Velocity"]
+        assert isinstance(dataset, hdfstream.RemoteDataset)
+        return dataset
+    return open_dataset
 
 
 @pytest.mark.vcr
@@ -42,7 +35,7 @@ def test_read_all_pos(pos_dataset):
     dtype = expected_pos.dtype
 
     pos = np.ndarray((n,3), dtype=dtype)
-    pos_dataset.read_direct(pos, source_sel=np.s_[:n,:])
+    pos_dataset().read_direct(pos, source_sel=np.s_[:n,:])
     assert np.all(pos[:n,:] == expected_pos)
 
 
@@ -57,7 +50,7 @@ def test_read_axis_pos(pos_dataset):
 
     for axis in range(3):
         pos = np.ndarray((n,), dtype=dtype)
-        pos_dataset.read_direct(pos, source_sel=np.s_[:n,axis])
+        pos_dataset().read_direct(pos, source_sel=np.s_[:n,axis])
         assert np.all(pos==expected_pos[:,axis])
 
 
@@ -74,7 +67,7 @@ def test_read_axis_pos_into_2d(pos_dataset):
     for axis in range(3):
         pos = np.zeros((n,3), dtype=dtype)
         with pytest.raises(RuntimeError):
-            pos_dataset.read_direct(pos, source_sel=np.s_[:n,axis], dest_sel=np.s_[:n,axis])
+            pos_dataset().read_direct(pos, source_sel=np.s_[:n,axis], dest_sel=np.s_[:n,axis])
 
 
 @pytest.mark.vcr
@@ -89,7 +82,7 @@ def test_read_all_pos_as_float32(pos_dataset):
 
     pos = np.ndarray((n,3), dtype=np.float32)
     with pytest.raises(RuntimeError):
-        pos_dataset.read_direct(pos, source_sel=np.s_[:n,:])
+        pos_dataset().read_direct(pos, source_sel=np.s_[:n,:])
 
 
 @pytest.mark.vcr
@@ -103,7 +96,7 @@ def test_read_all_vel_as_float64(vel_dataset):
     dtype = expected_vel.dtype
 
     vel = np.ndarray((n,3), dtype=np.float64)
-    vel_dataset.read_direct(vel, source_sel=np.s_[:n,:])
+    vel_dataset().read_direct(vel, source_sel=np.s_[:n,:])
     assert np.all(vel==expected_vel)
 
 
@@ -118,7 +111,7 @@ def test_read_partial_vel_no_conversion(vel_dataset):
     dtype = expected_vel.dtype
 
     vel = np.zeros((n,3), dtype=np.float32)
-    vel_dataset.read_direct(vel, source_sel=np.s_[200:300,:], dest_sel=np.s_[200:300,:])
+    vel_dataset().read_direct(vel, source_sel=np.s_[200:300,:], dest_sel=np.s_[200:300,:])
     assert np.all(vel[200:300,:]==expected_vel[200:300,:])
 
 
@@ -133,5 +126,5 @@ def test_read_partial_vel_with_conversion(vel_dataset):
     dtype = expected_vel.dtype
 
     vel = np.zeros((n,3), dtype=np.float64)
-    vel_dataset.read_direct(vel, source_sel=np.s_[200:300,:], dest_sel=np.s_[200:300,:])
+    vel_dataset().read_direct(vel, source_sel=np.s_[200:300,:], dest_sel=np.s_[200:300,:])
     assert np.all(vel[200:300,:]==expected_vel[200:300,:])

@@ -92,6 +92,17 @@ class RemoteFile(collections.abc.Mapping):
     def __getitem__(self, key):
         return self.root.__getitem__(key)
 
+    def get(self, key, getlink=False):
+        """
+        Return the object at the specified path in the HDF5 file.
+
+        :param key: path to the object
+        :type key: str
+        :param getlink: if True, returns a SoftLink or HardLink object
+        :type getlink: bool
+        """
+        return self.root.get(key, getlink)
+
     def __len__(self):
         return self.root.__len__()
 
