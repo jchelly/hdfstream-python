@@ -1,5 +1,6 @@
 #!/bin/env python
 
+import hdfstream
 import numpy as np
 import pytest
 from test_data import snap_data
