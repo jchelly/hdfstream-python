@@ -244,3 +244,8 @@ class RemoteDataset:
         """
         # Copy the dataset data. TODO: download large datasets in chunks
         destination[name] = self[...]
+
+        # Copy any attributes on the dataset
+        dataset = destination[name]
+        for attr_name, attr_val in self.attrs.items():
+            dataset.attrs[attr_name] = attr_val
