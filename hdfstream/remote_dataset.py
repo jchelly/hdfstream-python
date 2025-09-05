@@ -232,3 +232,15 @@ class RemoteDataset:
             # Download the data into the supplied destination array's buffer
             self.connection.request_slice_into(self.file_path, self.name, slice_string, dest)
 
+    def _copy_self(self, destination, name):
+        """
+        Copy this dataset to a new HDF5 dataset in the specified h5py file or
+        group.
+
+        :param destination: the destination file or group
+        :type destination: h5py.File or h5py.Group
+        :param name: name of the dataset to create at the destination
+        :type name: str
+        """
+        # Copy the dataset data. TODO: download large datasets in chunks
+        destination[name] = self[...]

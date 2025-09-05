@@ -336,3 +336,40 @@ class RemoteGroup(collections.abc.Mapping):
         Close the group. Only included for compatibility (there's nothing to close.)
         """
         pass
+
+    def _copy_self(self, dest, name=None):
+        """
+        Copy this group to a local HDF5 file opened with h5py in writable
+        mode. This is used to implement the .copy() method.
+
+        :param source: The remote object to copy, or its path
+        :type source: RemoteGroup, RemoteDataset or str
+        :param dest: The local HDF5 file or group to copy the object to
+        :type dest: h5py.File or h5py.Group
+        :param name: The name of the object to create in dest
+        :type name: str
+        """
+
+        # Determine the name of the group to create at the destination
+        if name is None:
+            name = self.name.split("/")[-1]
+
+        # Create the new group
+        output_group = dest.create_group(name)
+
+        # Copy any attributes on the group
+        for attr_name, attr_val in self.attrs.items():
+            output_group.attrs[attr_name] = attr_val
+
+        # Loop over group members
+        for member_name in self.keys():
+
+            # Get the link type for this member
+            link = self.get(member_name, getlink=True)
+            if isinstance(link, hdfstream.SoftLink):
+                # This is a soft link, so make the same link in the output
+                output_group[member_name] = h5py.SoftLink(link.path)
+            else:
+                # This is some other object, so ask it to copy itself
+                self[member_name]._copy_self(output_group, member_name)
+
