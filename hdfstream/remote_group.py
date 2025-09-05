@@ -81,15 +81,15 @@ class RemoteGroup(collections.abc.Mapping):
         Decode the msgpack representation of this group
         """
         # Store any attributes
-        self.attrs = data["attributes"]
+        self._attrs = data["attributes"]
 
         # Will return zero dimensional attributes as numpy scalars
-        for name, arr in self.attrs.items():
+        for name, arr in self._attrs.items():
             if hasattr(arr, "shape") and len(arr.shape) == 0:
-                self.attrs[name] = arr[()]
+                self._attrs[name] = arr[()]
 
         # Create sub-objects
-        self.members = {}
+        self._members = {}
         if "members" in data:
             for member_name, member_data in data["members"].items():
                 if member_data is not None:
@@ -97,19 +97,28 @@ class RemoteGroup(collections.abc.Mapping):
                         path = self.name + member_name
                     else:
                         path = self.name + "/" + member_name
-                    self.members[member_name] = _unpack_object(self.connection, self.file_path, path,
-                                                               member_data, self.max_depth, self.data_size_limit,
-                                                               self)
+                    self._members[member_name] = _unpack_object(self.connection, self.file_path, path,
+                                                                member_data, self.max_depth, self.data_size_limit,
+                                                                self)
                 else:
-                    self.members[member_name] = None
+                    self._members[member_name] = None
 
         self.unpacked = True
+
+    @property
+    def attrs(self):
+        self._load()
+        return self._attrs
+
+    @property
+    def members(self):
+        self._load()
+        return self._members
 
     def _ensure_member_loaded(self, key):
         """
         Load sub-groups on access, if they were not already loaded
         """
-        self._load()
         if self.members[key] is None:
             object_name = self.name+"/"+key
             self.members[key] = RemoteGroup(self.connection, self.file_path, object_name, self.max_depth, self.data_size_limit, parent=self)
@@ -155,9 +164,6 @@ class RemoteGroup(collections.abc.Mapping):
         The path must be relative to this group.
         """
         assert key.startswith("/")==False
-
-        # Ensure this group is loaded
-        self._load()
 
         # Split the path into first component (which identifies a member of this group) and rest of path
         components = key.split("/", 1)
@@ -233,11 +239,9 @@ class RemoteGroup(collections.abc.Mapping):
         return self.get(key)
 
     def __len__(self):
-        self._load()
         return len(self.members)
 
     def __iter__(self):
-        self._load()
         for member in self.members:
             yield member
 
@@ -260,7 +264,6 @@ class RemoteGroup(collections.abc.Mapping):
             return self._parent
 
     def _ipython_key_completions_(self):
-        self._load()
         return list(self.members.keys())
 
     def _visit(self, func, path):
