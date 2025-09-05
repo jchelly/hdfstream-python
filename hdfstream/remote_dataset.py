@@ -232,20 +232,17 @@ class RemoteDataset:
             # Download the data into the supplied destination array's buffer
             self.connection.request_slice_into(self.file_path, self.name, slice_string, dest)
 
-    def _copy_self(self, destination, name):
+    def _copy_self(self, dest, name, shallow=False, expand_soft=False, recursive=True):
         """
         Copy this dataset to a new HDF5 dataset in the specified h5py file or
-        group.
-
-        :param destination: the destination file or group
-        :type destination: h5py.File or h5py.Group
-        :param name: name of the dataset to create at the destination
-        :type name: str
+        group. The parameters shallow, expand_soft and recursive are not used
+        here but are present so that this method has the same signature as
+        RemoteGroup._copy_self().
         """
         # Copy the dataset data. TODO: download large datasets in chunks
-        destination[name] = self[...]
+        dest[name] = self[...]
 
         # Copy any attributes on the dataset
-        dataset = destination[name]
+        dataset = dest[name]
         for attr_name, attr_val in self.attrs.items():
             dataset.attrs[attr_name] = attr_val
