@@ -352,7 +352,7 @@ class RemoteGroup(collections.abc.Mapping):
         """
         pass
 
-    def _copy_self(self, dest, name=None):
+    def _copy_self(self, dest, name=None, expand_soft=False):
         """
         Copy this group to a local HDF5 file opened with h5py in writable
         mode. This is used to implement the .copy() method.
@@ -381,8 +381,9 @@ class RemoteGroup(collections.abc.Mapping):
 
             # Get the link type for this member
             link = self.get(member_name, getlink=True)
-            if isinstance(link, hdfstream.SoftLink):
-                # This is a soft link, so make the same link in the output
+            if isinstance(link, hdfstream.SoftLink) and expand_soft==False:
+                # This is a soft link and we're not following links. Make the
+                # same link in the output
                 output_group[member_name] = h5py.SoftLink(link.path)
             else:
                 # This is some other object, so ask it to copy itself
