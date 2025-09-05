@@ -21,6 +21,26 @@ def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit
         raise RuntimeError("Unrecognised object type")
 
 
+class _LazyDict(dict):
+    def __init__(self, callback, *args, **kwargs):
+        """
+        A dict-like object which calls a callback function to load any keys
+        with an associated value of None. Used to lazy load group members.
+
+        :param callback: A function that takes a key and returns the computed value.
+        :type callback: Callable
+        """
+        super().__init__(*args, **kwargs)
+        self._callback = callback
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        if value is None:
+            value = self._callback(key)
+            self[key] = value
+        return value
+
+
 class RemoteGroup(collections.abc.Mapping):
     """
     This class represents a HDF5 group in a file on the server. To open a
@@ -88,8 +108,13 @@ class RemoteGroup(collections.abc.Mapping):
             if hasattr(arr, "shape") and len(arr.shape) == 0:
                 self._attrs[name] = arr[()]
 
-        # Create sub-objects
-        self._members = {}
+        # Create a lazy dict to request sub-groups on access if we didn't already download them
+        def load_subgroup(member_name):
+            path = (self.name + member_name) if (self.name=="/") else (self.name + "/" + member_name)
+            return RemoteGroup(self.connection, self.file_path, path, self.max_depth, self.data_size_limit, parent=self)
+        self._member_dict = _LazyDict(load_subgroup)
+
+        # Unpack any sub-objects which we have already downloaded
         if "members" in data:
             for member_name, member_data in data["members"].items():
                 if member_data is not None:
@@ -97,39 +122,26 @@ class RemoteGroup(collections.abc.Mapping):
                         path = self.name + member_name
                     else:
                         path = self.name + "/" + member_name
-                    self._members[member_name] = _unpack_object(self.connection, self.file_path, path,
+                    self._member_dict[member_name] = _unpack_object(self.connection, self.file_path, path,
                                                                 member_data, self.max_depth, self.data_size_limit,
                                                                 self)
                 else:
-                    self._members[member_name] = None
+                    self._member_dict[member_name] = None
 
         self.unpacked = True
 
     @property
     def attrs(self):
+        """
+        Return a dict containing this group's HDF5 attributes
+        """
         self._load()
         return self._attrs
 
     @property
-    def members(self):
+    def _members(self):
         self._load()
-        return self._members
-
-    def _ensure_member_loaded(self, key):
-        """
-        Load sub-groups on access, if they were not already loaded
-        """
-        if self.members[key] is None:
-            object_name = self.name+"/"+key
-            self.members[key] = RemoteGroup(self.connection, self.file_path, object_name, self.max_depth, self.data_size_limit, parent=self)
-
-    def _get_member(self, key):
-        """
-        Ensure the specified member is loaded and return it. Does not
-        dereference soft links, so this can return a SoftLink object.
-        """
-        self._ensure_member_loaded(key)
-        return self.members[key]
+        return self._member_dict
 
     def get(self, key, getlink=False):
         """
@@ -180,7 +192,7 @@ class RemoteGroup(collections.abc.Mapping):
             return self._parent if rest_of_path is None else self._parent[rest_of_path]
 
         # Locate the specifed sub group/dataset
-        member_object = self._get_member(member_name)
+        member_object = self._members[member_name]
 
         # If we've encountered a soft link, dereference it
         if isinstance(member_object, SoftLink):
@@ -223,11 +235,11 @@ class RemoteGroup(collections.abc.Mapping):
         if len(fields) == 1:
             # No separator, so key is the name of a member of this group
             group = self
-            member = self._get_member(fields[0])
+            member = self._members[fields[0]]
         else:
             # Have a separator, so key is something in a subgroup
             group = self[fields[0]]
-            member = group._get_member(fields[1])
+            member = group._members[fields[1]]
 
         # Return a link object
         if isinstance(member, SoftLink):
@@ -239,15 +251,15 @@ class RemoteGroup(collections.abc.Mapping):
         return self.get(key)
 
     def __len__(self):
-        return len(self.members)
+        return len(self._members)
 
     def __iter__(self):
-        for member in self.members:
+        for member in self._members:
             yield member
 
     def __repr__(self):
         if self.unpacked:
-            return f'<Remote HDF5 group "{self.name}" ({len(self.members)} members)>'
+            return f'<Remote HDF5 group "{self.name}" ({len(self._members)} members)>'
         else:
             return f'<Remote HDF5 group "{self.name}" (to be loaded on access)>'
 
@@ -264,7 +276,7 @@ class RemoteGroup(collections.abc.Mapping):
             return self._parent
 
     def _ipython_key_completions_(self):
-        return list(self.members.keys())
+        return list(self._members.keys())
 
     def _visit(self, func, path):
 
