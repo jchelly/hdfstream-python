@@ -4,6 +4,7 @@ import collections.abc
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
 from hdfstream.remote_links import HardLink, SoftLink
+import h5py
 
 
 def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit, parent):

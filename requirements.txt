@@ -5,3 +5,4 @@ msgpack-numpy
 tqdm
 pytest
 pytest-recording
+h5py

@@ -18,6 +18,7 @@ dependencies = [
     "tqdm",
     "pytest",
     "pytest-recording",
+    "h5py",
 ]
 readme = "README.md"
 classifiers = [
