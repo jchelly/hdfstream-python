@@ -4,6 +4,7 @@ import collections.abc
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
 from hdfstream.remote_links import HardLink, SoftLink
+import h5py
 
 
 def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit, parent):
@@ -19,6 +20,26 @@ def _unpack_object(connection, file_path, name, data, max_depth, data_size_limit
         return SoftLink(data)
     else:
         raise RuntimeError("Unrecognised object type")
+
+
+class _LazyDict(dict):
+    def __init__(self, callback, *args, **kwargs):
+        """
+        A dict-like object which calls a callback function to load any keys
+        with an associated value of None. Used to lazy load group members.
+
+        :param callback: A function that takes a key and returns the computed value.
+        :type callback: Callable
+        """
+        super().__init__(*args, **kwargs)
+        self._callback = callback
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        if value is None:
+            value = self._callback(key)
+            self[key] = value
+        return value
 
 
 class RemoteGroup(collections.abc.Mapping):
@@ -81,15 +102,20 @@ class RemoteGroup(collections.abc.Mapping):
         Decode the msgpack representation of this group
         """
         # Store any attributes
-        self.attrs = data["attributes"]
+        self._attrs = data["attributes"]
 
         # Will return zero dimensional attributes as numpy scalars
-        for name, arr in self.attrs.items():
+        for name, arr in self._attrs.items():
             if hasattr(arr, "shape") and len(arr.shape) == 0:
-                self.attrs[name] = arr[()]
+                self._attrs[name] = arr[()]
 
-        # Create sub-objects
-        self.members = {}
+        # Create a lazy dict to request sub-groups on access if we didn't already download them
+        def load_subgroup(member_name):
+            path = (self.name + member_name) if (self.name=="/") else (self.name + "/" + member_name)
+            return RemoteGroup(self.connection, self.file_path, path, self.max_depth, self.data_size_limit, parent=self)
+        self._member_dict = _LazyDict(load_subgroup)
+
+        # Unpack any sub-objects which we have already downloaded
         if "members" in data:
             for member_name, member_data in data["members"].items():
                 if member_data is not None:
@@ -97,30 +123,26 @@ class RemoteGroup(collections.abc.Mapping):
                         path = self.name + member_name
                     else:
                         path = self.name + "/" + member_name
-                    self.members[member_name] = _unpack_object(self.connection, self.file_path, path,
-                                                               member_data, self.max_depth, self.data_size_limit,
-                                                               self)
+                    self._member_dict[member_name] = _unpack_object(self.connection, self.file_path, path,
+                                                                member_data, self.max_depth, self.data_size_limit,
+                                                                self)
                 else:
-                    self.members[member_name] = None
+                    self._member_dict[member_name] = None
 
         self.unpacked = True
 
-    def _ensure_member_loaded(self, key):
+    @property
+    def attrs(self):
         """
-        Load sub-groups on access, if they were not already loaded
+        Return a dict containing this group's HDF5 attributes
         """
         self._load()
-        if self.members[key] is None:
-            object_name = self.name+"/"+key
-            self.members[key] = RemoteGroup(self.connection, self.file_path, object_name, self.max_depth, self.data_size_limit, parent=self)
+        return self._attrs
 
-    def _get_member(self, key):
-        """
-        Ensure the specified member is loaded and return it. Does not
-        dereference soft links, so this can return a SoftLink object.
-        """
-        self._ensure_member_loaded(key)
-        return self.members[key]
+    @property
+    def _members(self):
+        self._load()
+        return self._member_dict
 
     def get(self, key, getlink=False):
         """
@@ -156,9 +178,6 @@ class RemoteGroup(collections.abc.Mapping):
         """
         assert key.startswith("/")==False
 
-        # Ensure this group is loaded
-        self._load()
-
         # Split the path into first component (which identifies a member of this group) and rest of path
         components = key.split("/", 1)
         member_name = components[0]
@@ -174,7 +193,7 @@ class RemoteGroup(collections.abc.Mapping):
             return self._parent if rest_of_path is None else self._parent[rest_of_path]
 
         # Locate the specifed sub group/dataset
-        member_object = self._get_member(member_name)
+        member_object = self._members[member_name]
 
         # If we've encountered a soft link, dereference it
         if isinstance(member_object, SoftLink):
@@ -217,11 +236,11 @@ class RemoteGroup(collections.abc.Mapping):
         if len(fields) == 1:
             # No separator, so key is the name of a member of this group
             group = self
-            member = self._get_member(fields[0])
+            member = self._members[fields[0]]
         else:
             # Have a separator, so key is something in a subgroup
             group = self[fields[0]]
-            member = group._get_member(fields[1])
+            member = group._members[fields[1]]
 
         # Return a link object
         if isinstance(member, SoftLink):
@@ -233,17 +252,15 @@ class RemoteGroup(collections.abc.Mapping):
         return self.get(key)
 
     def __len__(self):
-        self._load()
-        return len(self.members)
+        return len(self._members)
 
     def __iter__(self):
-        self._load()
-        for member in self.members:
+        for member in self._members:
             yield member
 
     def __repr__(self):
         if self.unpacked:
-            return f'<Remote HDF5 group "{self.name}" ({len(self.members)} members)>'
+            return f'<Remote HDF5 group "{self.name}" ({len(self._members)} members)>'
         else:
             return f'<Remote HDF5 group "{self.name}" (to be loaded on access)>'
 
@@ -260,8 +277,7 @@ class RemoteGroup(collections.abc.Mapping):
             return self._parent
 
     def _ipython_key_completions_(self):
-        self._load()
-        return list(self.members.keys())
+        return list(self._members.keys())
 
     def _visit(self, func, path):
 
@@ -336,3 +352,60 @@ class RemoteGroup(collections.abc.Mapping):
         Close the group. Only included for compatibility (there's nothing to close.)
         """
         pass
+
+    def _copy_self(self, dest, name, shallow=False, expand_soft=False,
+                   recursive=True):
+        """
+        Copy this group to a local HDF5 file opened with h5py in writable
+        mode. This is used to implement the .copy() method.
+        """
+        # Create the new group
+        output_group = dest.create_group(name)
+        for attr_name, attr_val in self.attrs.items():
+            output_group.attrs[attr_name] = attr_val
+
+        # If we're not copying group members, we're done
+        if not recursive:
+            return
+
+        # Loop over group members
+        for member_name in self.keys():
+            # Get the link type for this member
+            link = self.get(member_name, getlink=True)
+            if isinstance(link, SoftLink) and expand_soft==False:
+                # This is a soft link and we're not following links. Make the
+                # same link in the output.
+                output_group[member_name] = h5py.SoftLink(link.path)
+            else:
+                # This is a group or a dataset, so copy it. If shallow=True then
+                # we should create the group and any attributes but not copy members.
+                self[member_name]._copy_self(output_group, member_name,
+                                             shallow=shallow, expand_soft=expand_soft,
+                                             recursive=(not shallow))
+
+    def copy(self, source, dest, name=None, shallow=False, expand_soft=False):
+        """
+        Copy a RemoteGroup or RemoteDataset object to a writable h5py.File or
+        h5py.Group.
+
+        :param source: the object or path to copy
+        :type source: RemoteGroup, RemoteDataset or str
+        :param dest: a local HDF5 file or group to copy the object to
+        :type dest: h5py.File or h5py.Group
+        :param name: name of the new object to create in dest
+        :type name: str
+        :param shallow: only copy immediate group members
+        :type shallow: bool
+        :param expand_soft: follow soft links and copy linked objects
+        :type expand_soft: bool
+        """
+        # Locate the source object if we were given a path
+        if isinstance(source, str):
+            source = self[source]
+
+        # Use source object base name if name in destination is not specified
+        if name is None:
+            name = source.name.split("/")[-1]
+
+        # Copy the object
+        source._copy_self(dest, name, shallow=shallow, expand_soft=expand_soft)

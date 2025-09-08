@@ -80,5 +80,9 @@ can decode responses correctly. The tests can be run by running
 To regenerate the stored responses, assuming the server is available:
 ```
 rm -r ./tests/cassettes/
-pytest --record-mode=once
+pytest --record-mode=rewrite
 ```
+Other pytest command line flags which might be useful:
+  * `--disable-recording`: run a "live" test ignoring the stored responses and generating real http requests
+  * `--server`: specify the server URL to use in tests
+  * `--no-verify-cert`: don't verify certificates (e.g. when testing against a local development server)
