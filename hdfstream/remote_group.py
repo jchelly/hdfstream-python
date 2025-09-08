@@ -371,7 +371,7 @@ class RemoteGroup(collections.abc.Mapping):
         for member_name in self.keys():
             # Get the link type for this member
             link = self.get(member_name, getlink=True)
-            if isinstance(link, hdfstream.SoftLink) and expand_soft==False:
+            if isinstance(link, SoftLink) and expand_soft==False:
                 # This is a soft link and we're not following links. Make the
                 # same link in the output.
                 output_group[member_name] = h5py.SoftLink(link.path)
@@ -381,3 +381,30 @@ class RemoteGroup(collections.abc.Mapping):
                 self[member_name]._copy_self(output_group, member_name,
                                              shallow=shallow, expand_soft=expand_soft,
                                              recursive=(not shallow))
+
+    def copy(self, source, dest, name=None, shallow=False, expand_soft=False):
+        """
+        Copy a RemoteGroup or RemoteDataset object to a writable h5py.File or
+        h5py.Group.
+
+        :param source: the object or path to copy
+        :type source: RemoteGroup, RemoteDataset or str
+        :param dest: a local HDF5 file or group to copy the object to
+        :type dest: h5py.File or h5py.Group
+        :param name: name of the new object to create in dest
+        :type name: str
+        :param shallow: only copy immediate group members
+        :type shallow: bool
+        :param expand_soft: follow soft links and copy linked objects
+        :type expand_soft: bool
+        """
+        # Locate the source object if we were given a path
+        if isinstance(source, str):
+            source = self[source]
+
+        # Use source object base name if name in destination is not specified
+        if name is None:
+            name = source.name.split("/")[-1]
+
+        # Copy the object
+        source._copy_self(dest, name, shallow=shallow, expand_soft=expand_soft)

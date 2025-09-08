@@ -181,3 +181,20 @@ class RemoteFile(collections.abc.Mapping):
         """
         pass
 
+    def copy(self, source, dest, name=None, shallow=False, expand_soft=False):
+        """
+        Copy a RemoteGroup or RemoteDataset object to a writable h5py.File or
+        h5py.Group.
+
+        :param source: the object or path to copy
+        :type source: RemoteGroup, RemoteDataset or str
+        :param dest: a local HDF5 file or group to copy the object to
+        :type dest: h5py.File or h5py.Group
+        :param name: name of the new object to create in dest
+        :type name: str
+        :param shallow: only copy immediate group members
+        :type shallow: bool
+        :param expand_soft: follow soft links and copy linked objects
+        :type expand_soft: bool
+        """
+        self.root.copy(source, dest, name, shallow, expand_soft)
