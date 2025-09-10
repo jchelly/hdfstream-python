@@ -15,6 +15,7 @@ from requests.auth import HTTPBasicAuth
 
 from hdfstream.exceptions import HDFStreamRequestError
 from hdfstream.decoding import decode_response
+from hdfstream.config import config
 
 
 _verify_cert = True
@@ -76,6 +77,9 @@ class Connection:
 
     def __init__(self, server, user=None, password=None):
 
+        # Check if server name is an alias
+        server = config.get_url(server)
+
         # Remove any trailing slashes from the server name
         self.server = server.rstrip("/")
 
@@ -95,6 +99,9 @@ class Connection:
 
     @staticmethod
     def new(server, user, password=None):
+
+        # Check if server name is an alias
+        server = config.get_url(server)
 
         # Remove any trailing slashes from the server name
         server = server.rstrip("/")
