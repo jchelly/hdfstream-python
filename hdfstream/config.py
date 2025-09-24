@@ -3,6 +3,7 @@
 import yaml
 import platformdirs
 import keyring
+import getpass
 
 #
 # Contents of the default configuration file
@@ -40,7 +41,7 @@ class Config:
         # Set up dict of aliases
         self._alias = {}
         for name in self._config["aliases"].keys():
-            self._alias[name] = str(self._config["aliases"][name]["url"])
+            self._alias[name] = self._config["aliases"][name]
 
     def resolve_alias(self, name, user, password):
         """
