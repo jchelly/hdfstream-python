@@ -1,6 +1,7 @@
 #!/bin/env python
 
 import pytest
+import keyring
 import hdfstream
 from hdfstream.testing import pytest_recording_configure, vcr_config
 
@@ -30,3 +31,11 @@ def eagle_snap_file(server_url):
 def swift_snap_file(server_url):
     filename="Tests/SWIFT/IOExamples/ssio_ci_04_2025/EagleSingle.hdf5"
     return lambda: open_file(server_url, filename)
+
+def raise_keyring_error():
+    raise keyring.errors.KeyringError("Tests should not be using the keyring!")
+
+@pytest.fixture(autouse=True)
+def break_keyring(monkeypatch):
+    monkeypatch.setattr(keyring, "get_password", raise_keyring_error)
+    monkeypatch.setattr(keyring, "set_password", raise_keyring_error)
