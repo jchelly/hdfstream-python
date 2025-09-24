@@ -98,7 +98,7 @@ class Connection:
     def new(server, user, password=None):
 
         # Check if server name is an alias
-        server = config.get_url(server)
+        server, user, password = config.resolve_alias(server, user, password)
 
         # Remove any trailing slashes from the server name
         server = server.rstrip("/")

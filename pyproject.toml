@@ -21,6 +21,7 @@ dependencies = [
     "h5py",
     "platformdirs",
     "pyyaml",
+    "keyring",
 ]
 readme = "README.md"
 classifiers = [
