@@ -2,8 +2,6 @@
 
 import yaml
 import platformdirs
-import keyring
-import getpass
 
 #
 # Contents of the default configuration file
@@ -43,19 +41,19 @@ class Config:
         for name in self._config["aliases"].keys():
             self._alias[name] = self._config["aliases"][name]
 
-    def resolve_alias(self, name, user, password):
+    def resolve_alias(self, name, user):
         """
-        Given an alias, return the corresponding server URL. If no match is
-        found, assume the name is already a URL and return it.
+        Given an alias, return the corresponding server URL and
+        the user name to use. If no match is found, assume the name is
+        already a URL and return it.
 
-        Also looks up any username and password we should use. If a username
-        is set and use_keyring is True, we will use a password from the keyring
-        or prompt for the password and store it.
+        If a username is specified, it overrides the stored username.
 
-        If a username and password are provided we return those in preference
-        to the values from the config file and keyring.
+        Also returns use_keyring, which specifies if we should try to
+        access the system keyring.
         """
 
+        use_keyring = False
         alias = self._alias.get(name, None)
         if alias is not None:
             # The specified server name is an alias
@@ -63,15 +61,10 @@ class Config:
             # Get the username, if it wasn't specified
             if user is None:
                 user = alias.get("user", None)
-            # Get the password, if it wasn't specified and we're using the keyring
+            # Check if we're using the keyring
             use_keyring = alias.get("use_keyring", False)
-            if use_keyring and user is not None and password is None:
-                password = keyring.get_password(name, user)
-                if password is None:
-                    password = getpass.getpass(f"Enter password for {user} at {name} (will store in system keyring): ")
-                    # TODO: only store passwords that work!
-                    keyring.set_password(name, user, password)
-        return name, user, password
+
+        return name, user, use_keyring
 
 # Read (or create) the config file with server aliases
 config = Config()

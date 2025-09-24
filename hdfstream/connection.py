@@ -6,6 +6,7 @@ import codecs
 import warnings
 import contextlib
 import getpass
+import keyring
 
 import requests
 import msgpack
@@ -75,14 +76,23 @@ class Connection:
     """
     _cache = {}
 
-    def __init__(self, server, user=None, password=None):
+    def __init__(self, server, user=None, password=None, use_keyring=False):
 
         # Remove any trailing slashes from the server name
         self.server = server.rstrip("/")
 
-        # If a username is specified with no password, prompt for the password
+        # If a username is specified with no password, get the password
+        store_password = False
         if user is not None and password is None:
-            password = getpass.getpass()
+            if use_keyring:
+                # If we're using the keyring and the password is not
+                # in the keyring, we'll need to store it after we've
+                # determined that it works.
+                password = keyring.get_password(server, user)
+                store_password = (password is None)
+            if password is None:
+                # If we don't have a password, ask for it
+                password = getpass.getpass()
 
         # Set up a session with the username and password
         self.session = requests.Session()
@@ -94,11 +104,15 @@ class Connection:
             response = self.session.get(self.server+"/msgpack/", verify=_verify_cert)
         raise_for_status(response)
 
+        # Store the password if necessary
+        if store_password:
+            keyring.set_password(self.server, user, password)
+
     @staticmethod
     def new(server, user, password=None):
 
         # Check if server name is an alias
-        server, user, password = config.resolve_alias(server, user, password)
+        server, user, use_keyring = config.resolve_alias(server, user)
 
         # Remove any trailing slashes from the server name
         server = server.rstrip("/")
@@ -109,7 +123,7 @@ class Connection:
 
         # Open a new connection if necessary
         if connection_id not in Connection._cache:
-            Connection._cache[connection_id] = Connection(server, user, password)
+            Connection._cache[connection_id] = Connection(server, user, password, use_keyring)
         return Connection._cache[connection_id]
 
     def get_and_unpack(self, url, params=None, desc=None):
