@@ -77,9 +77,6 @@ class Connection:
 
     def __init__(self, server, user=None, password=None):
 
-        # Check if server name is an alias
-        server = config.get_url(server)
-
         # Remove any trailing slashes from the server name
         self.server = server.rstrip("/")
 
