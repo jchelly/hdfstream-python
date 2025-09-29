@@ -114,3 +114,6 @@ def vcr_config():
         "serializer": "msgpack.gz",
         "filter_headers": [("authorization", "DUMMY")],
     }
+
+class KeyringNotAvailableError(Exception):
+    pass

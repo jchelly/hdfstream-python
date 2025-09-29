@@ -3,7 +3,8 @@
 import pytest
 import keyring
 import hdfstream
-from hdfstream.testing import pytest_recording_configure, vcr_config
+from hdfstream.testing import pytest_recording_configure, vcr_config, KeyringNotAvailableError
+from hdfstream.config import Config
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -32,14 +33,19 @@ def swift_snap_file(server_url):
     filename="Tests/SWIFT/IOExamples/ssio_ci_04_2025/EagleSingle.hdf5"
     return lambda: open_file(server_url, filename)
 
-def raise_keyring_error():
-    raise keyring.errors.KeyringError("Tests should not be using the keyring!")
+def raise_keyring_error(*args, **kwargs):
+    raise KeyringNotAvailableError("Tests should not be using the keyring!")
 
 @pytest.fixture(autouse=True)
 def break_keyring(monkeypatch):
     monkeypatch.setattr(keyring, "get_password", raise_keyring_error)
     monkeypatch.setattr(keyring, "set_password", raise_keyring_error)
 
+def get_test_config():
+    config = Config()
+    config.add_alias("example", "https://example.com/hdfstream")
+    return config
+
 @pytest.fixture(autouse=True)
-def use_default_config(monkeypatch):
-    monkeypatch.setattr(hdfstream.config, "get_config", hdfstream.config._default_config)
+def use_test_config(monkeypatch):
+    monkeypatch.setattr(hdfstream.config, "get_config", get_test_config)

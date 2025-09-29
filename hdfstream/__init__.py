@@ -21,7 +21,6 @@ from hdfstream.remote_group import RemoteGroup
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.remote_links import SoftLink, HardLink
 from hdfstream.defaults import *
-from hdfstream.config import Config
 
 
 def open(server, name, user=None, password=None, max_depth=max_depth_default,
