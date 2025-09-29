@@ -39,3 +39,7 @@ def raise_keyring_error():
 def break_keyring(monkeypatch):
     monkeypatch.setattr(keyring, "get_password", raise_keyring_error)
     monkeypatch.setattr(keyring, "set_password", raise_keyring_error)
+
+@pytest.fixture(autouse=True)
+def use_default_config(monkeypatch):
+    monkeypatch.setattr(hdfstream.config, "get_config", hdfstream.config._default_config)
