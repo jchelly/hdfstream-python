@@ -1,9 +1,9 @@
 #!/bin/env python
 
-__all__ = ["verify_cert", "disable_progress", "set_progress_delay", "open",
-           "RemoteDirectory", "RemoteFile", "RemoteGroup", "RemoteDataset",
-           "SoftLink", "HardLink", "testing", "Config", "get_config",
-           "set_config"]
+__all__ = ["open", "RemoteDirectory", "RemoteFile", "RemoteGroup",
+           "RemoteDataset", "SoftLink", "HardLink", "disable_progress",
+           "set_progress_delay", "Config", "get_config", "set_config",
+           "verify_cert", "testing"]
 
 
 from importlib.metadata import version, PackageNotFoundError
