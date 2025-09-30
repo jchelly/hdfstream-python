@@ -3,7 +3,6 @@
 import pytest
 import keyring.errors
 import hdfstream
-import hdfstream.config
 from hdfstream.testing import KeyringNotAvailableError
 
 def test_keyring_set_is_disabled():
@@ -15,28 +14,28 @@ def test_keyring_get_is_disabled():
         password = keyring.get_password("_system", "_username")
 
 def test_alias_not_found():
-    config = hdfstream.config.get_config()
+    config = hdfstream.get_config()
     url, user, use_keyring = config.resolve_alias("no_such_alias", None)
     assert url == "no_such_alias"
     assert user is None
     assert use_keyring == False
 
 def test_alias_not_found_with_user():
-    config = hdfstream.config.get_config()
+    config = hdfstream.get_config()
     url, user, use_keyring = config.resolve_alias("no_such_alias", "username")
     assert url == "no_such_alias"
     assert user == "username"
     assert use_keyring == False
 
 def test_alias():
-    config = hdfstream.config.get_config()
+    config = hdfstream.get_config()
     url, user, use_keyring = config.resolve_alias("example", None)
     assert url == "https://example.com/hdfstream"
     assert user is None
     assert use_keyring == False
 
 def test_alias_with_user():
-    config = hdfstream.config.get_config()
+    config = hdfstream.get_config()
     url, user, use_keyring = config.resolve_alias("example", "username")
     assert url == "https://example.com/hdfstream"
     assert user == "username"
@@ -45,7 +44,7 @@ def test_alias_with_user():
 def test_alias_yaml_round_trip(tmp_path):
 
     # Make the test config
-    config = hdfstream.config.Config()
+    config = hdfstream.Config()
     config.add_alias("test_alias", "test_url", user="test_user", use_keyring=True)
 
     # Write the config to a file
@@ -53,7 +52,7 @@ def test_alias_yaml_round_trip(tmp_path):
     config.write(filename)
 
     # Read it back
-    config = hdfstream.config.Config()
+    config = hdfstream.Config()
     config.read(filename)
 
     # Check it works

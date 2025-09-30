@@ -4,7 +4,6 @@ import pytest
 import keyring
 import hdfstream
 from hdfstream.testing import pytest_recording_configure, vcr_config, KeyringNotAvailableError
-from hdfstream.config import Config
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -42,10 +41,11 @@ def break_keyring(monkeypatch):
     monkeypatch.setattr(keyring, "set_password", raise_keyring_error)
 
 def get_test_config():
-    config = Config()
+    config = hdfstream.Config()
     config.add_alias("example", "https://example.com/hdfstream")
     return config
 
 @pytest.fixture(autouse=True)
 def use_test_config(monkeypatch):
+    monkeypatch.setattr(hdfstream, "get_config", get_test_config)
     monkeypatch.setattr(hdfstream.config, "get_config", get_test_config)
