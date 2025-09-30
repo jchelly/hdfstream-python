@@ -172,3 +172,5 @@ def set_config(config):
     :param config: the Config object to use
     :type config: hdfstream.Config
     """
+    global _config
+    _config = config

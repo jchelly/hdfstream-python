@@ -65,11 +65,11 @@ def test_set_config():
 
     # Make the test config
     config = hdfstream.Config()
-    config.add_alias("test_alias", "test_url", user="test_user", use_keyring=True)
+    config.add_alias("test_set_alias", "test_set_url", user="test_set_user", use_keyring=True)
     hdfstream.set_config(config)
 
     # Check it works
-    url, user, use_keyring = config.resolve_alias("test_alias", None)
-    assert url == "test_url"
-    assert user == "test_user"
+    url, user, use_keyring = config.resolve_alias("test_set_alias", None)
+    assert url == "test_set_url"
+    assert user == "test_set_user"
     assert use_keyring == True
