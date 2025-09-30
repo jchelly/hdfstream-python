@@ -107,6 +107,13 @@ def pytest_recording_configure(config, vcr):
 def vcr_config():
     """
     Configure vcrpy to use the gzipped messagepack serializer. Should be
-    imported in conftest.py when using pytest.
+    imported in conftest.py when using pytest. Also strip out auth headers
+    in case we accidentally record an authenticated request.
     """
-    return {"serializer": "msgpack.gz"}
+    return {
+        "serializer": "msgpack.gz",
+        "filter_headers": [("authorization", "DUMMY")],
+    }
+
+class KeyringNotAvailableError(Exception):
+    pass

@@ -6,3 +6,6 @@ tqdm
 pytest
 pytest-recording
 h5py
+platformdirs
+pyyaml
+keyring

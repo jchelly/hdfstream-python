@@ -19,6 +19,9 @@ dependencies = [
     "pytest",
     "pytest-recording",
     "h5py",
+    "platformdirs",
+    "pyyaml",
+    "keyring",
 ]
 readme = "README.md"
 classifiers = [
