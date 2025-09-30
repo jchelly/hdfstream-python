@@ -31,6 +31,15 @@ class Config:
     def add_alias(self, name, url, user=None, use_keyring=False):
         """
         Add a new alias for the specified URL
+
+        :param name: name of the alias to create
+        :type name: str
+        :param url: URL of the alias to create
+        :type url: str
+        :param user: default username to use when connecting
+        :type user: str or None
+        :param use_keyring: whether to use the system keyring to store passwords
+        :type use_keyring: bool
         """
         self._alias[name] = {
             "url" : url,
@@ -40,7 +49,14 @@ class Config:
 
     def write(self, filename=None, mode="x"):
         """
-        Write this config object to a yaml file
+        Write this config object to a yaml file. Writes to config.yml in
+        the user's default configuration directory (supplied by the
+        platformdirs module) if no filename is provided.
+
+        :param filename: name of the file to write
+        :type filename: str or None
+        :param mode: mode used to open the file (usually 'w' or 'x')
+        :type mode: str
         """
         if filename is None:
             filename = self._config_path
@@ -50,7 +66,12 @@ class Config:
 
     def read(self, filename=None):
         """
-        Read and validate the specified config file
+        Read the specified config file and update this Config object.
+        Reads config.yml in the user's default configuration directory
+        (supplied by the platformdirs module) if no filename is provided.
+
+        :param filename: name of the file to write
+        :type filename: str or None
         """
         if filename is None:
             filename = self._config_path
@@ -82,16 +103,19 @@ class Config:
 
     def resolve_alias(self, name, user):
         """
-        Given an alias, return the corresponding server URL and
-        the user name to use. If no match is found, assume the name is
-        already a URL and return it.
+        Given an alias, return the corresponding server URL, the user name
+        to use, and a flag indicating if we should use the system keyring
+        to access passwords. If the supplied name is not an alias then it
+        is assumed to be a URL already and is returned unmodified. If a
+        username is specified, it overrides any configured username.
 
-        If a username is specified, it overrides the stored username.
+        :param name: name of the alias to look up
+        :type name: str
+        :param user: overrides configured user name if not None
+        :type user: str or None
 
-        Also returns use_keyring, which specifies if we should try to
-        access the system keyring.
+        :rtype: (str, str, bool)
         """
-
         use_keyring = False
         alias = self._alias.get(name, None)
         if alias is not None:
@@ -127,10 +151,10 @@ def _read_user_config():
 _config = None
 def get_config():
     """
-    Return a Config object
+    Return the active configuration object. Read the user's config file if
+    possible, otherwise write a new default config file.
 
-    Reads the user's config file if possible. Writes a new default config
-    otherwise.
+    :rtype: hdfstream.Config
     """
     global _config
     try:
