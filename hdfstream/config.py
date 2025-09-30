@@ -163,3 +163,12 @@ def get_config():
         _config = _default_config()
         _config.write()
     return _config
+
+
+def set_config(config):
+    """
+    Set the active configuration object
+
+    :param config: the Config object to use
+    :type config: hdfstream.Config
+    """
