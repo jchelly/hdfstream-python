@@ -60,3 +60,16 @@ def test_alias_yaml_round_trip(tmp_path):
     assert url == "test_url"
     assert user == "test_user"
     assert use_keyring == True
+
+def test_set_config():
+
+    # Make the test config
+    config = hdfstream.Config()
+    config.add_alias("test_alias", "test_url", user="test_user", use_keyring=True)
+    hdfstream.set_config(config)
+
+    # Check it works
+    url, user, use_keyring = config.resolve_alias("test_alias", None)
+    assert url == "test_url"
+    assert user == "test_user"
+    assert use_keyring == True

@@ -3,8 +3,8 @@ Server aliases
 
 In order to avoid the need to enter a long server URL every time a
 connection is opened, the module provides a yaml configuration file
-which can be used to define an `alias`, or short name, for the
-server. On linux this file is stored in::
+which can be used to define aliases, or short names, for servers.
+On linux this file is stored in::
 
     ~/.config/hdfstream/config.yml
 
@@ -32,3 +32,15 @@ the module will try to use the system keyring (via the `python keyring
 module <https://pypi.org/project/keyring/>`__) to fetch the
 password. If the password is not in the keyring then the module
 prompts for a password and stores it in the keyring if it works.
+
+Writing a new default configuration file
+----------------------------------------
+
+To create a new configuration and save it as the default::
+
+    config = hdfstream.Config()
+    config.add_alias("test_alias", "test_url", user="test_user", use_keyring=True)
+    config.write(mode="w") # Overwrites the default config file
+    hdfstream.set_config(config) # Sets the configuration for this session
+
+The default configuration can be restored by deleting the config.yml file.
