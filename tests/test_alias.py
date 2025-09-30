@@ -13,6 +13,12 @@ def test_keyring_get_is_disabled():
     with pytest.raises(KeyringNotAvailableError):
         password = keyring.get_password("_system", "_username")
 
+def test_get_config_monkeypatched():
+    # Check that tests don't use the user's real configuration
+    config = hdfstream.get_config()
+    assert config is not hdfstream.config._config
+    assert "cosma" not in config._alias
+
 def test_alias_not_found():
     config = hdfstream.get_config()
     url, user, use_keyring = config.resolve_alias("no_such_alias", None)
