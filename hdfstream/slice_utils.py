@@ -59,12 +59,11 @@ def ensure_integer_index_array(index, size):
         raise IndexError("Index arrays must be of integer or boolean type")
 
 
-class DatasetIndex:
+class NormalizedSlice:
 
     def __init__(self, shape, key):
         """
-        Class used to convert numpy style index tuples into an appropriate format
-        for the web service.
+        Class used to interpret numpy style index tuples.
 
         Converts the supplied key into a tuple of slices with one element for
         each dimension in the dataset. Any Ellipsis are expanded into
@@ -72,13 +71,7 @@ class DatasetIndex:
         with slice(None). Any slice(None) are then replaced with explicit
         integer ranges based on the size of the dataset.
 
-        The index for each dimension may be any of:
-
-        * Integer
-        * Slice object
-        * List of integer or boolean indexes
-        * Array of integer or boolean indexes
-
+        The index for each dimension may be an integer or a slice object.
         We might also have up to one Ellipsis in place of zero or more
         dimensions. We're only going to allow lists and arrays as the index
         in the first dimension here.
@@ -95,6 +88,7 @@ class DatasetIndex:
         # where the index was a scalar, for consistency with numpy.
         self.mask = np.ones(len(shape), dtype=bool)
         self.shape = np.asarray(shape, dtype=int)
+        self.rank = len(self.shape)
 
         # Handle the case where the dataset is a scalar. Only an empty tuple
         # or an Ellipsis is allowed here.
@@ -128,25 +122,9 @@ class DatasetIndex:
         assert len(key) == len(shape)
 
         # Validate and store the index for each dimension:
-        # After this the first dimension may have a slice object or an array.
-        # The remaining dimensions (if any) will all have slice objects.
         self.keys = []
         for i, index in enumerate(key):
-            if isinstance(index, list):
-                index = convert_list_to_array(index, shape[i])
-            if isinstance(index, np.ndarray):
-                index = ensure_integer_index_array(index, shape[i])
-                if i != 0:
-                    raise IndexError("Indexing with lists or arrays is only supported in the first dimension")
-                if len(index.shape) == 0:
-                    j = int(index) # scalar index stored as a 0-d array
-                    self.keys.append(slice(j, j+1, 1))
-                    self.mask[i] = False
-                elif len(index.shape) == 1:
-                    self.keys.append(index) # array of indexes
-                else:
-                    raise IndexError("Indexing with multi-dimensional arrays is not supported")
-            elif isinstance(index, slice):
+            if isinstance(index, slice):
                 # Index is a slice object. Expand out any Nones in it.
                 self.keys.append(slice(*index.indices(shape[i])))
             elif is_integer(index):
@@ -155,7 +133,7 @@ class DatasetIndex:
                 self.keys.append(slice(j, j+1, 1))
                 self.mask[i] = False
             else:
-                raise IndexError("Indexes must be integer, slice, Ellipsis or array type")
+                raise IndexError("Indexes must be integer, slice, or Ellipsis")
 
         # Check that any slices have a step size of 1
         for key in self.keys:
@@ -163,75 +141,79 @@ class DatasetIndex:
                 if key.step != 1:
                     raise IndexError("Slices must have step=1")
 
-        # If the first index is an array, check if it's ascending and unique
-        self.sorted_index = None
-        self.sorted_inverse = None
-        if len(self.keys) > 0 and isinstance(self.keys[0], np.ndarray) and len(self.keys[0]) > 1:
-            diff = self.keys[1:] - self.keys[:-1]
-            if np.any(diff <= 0):
-                # Compute a sorted, unique index in the first dimension
-                self.sorted_index, self.sorted_inverse = np.unique(key, return_inverse=True)
+        # Compute offset and length of the slice in each dimension
+        self.start = np.zeros(self.rank, dtype=int)
+        self.count = np.zeros(self.rank, dtype=int)
+        for i in range(self.rank):
+            self.start[i] = self.keys[i].start
+            self.count[i] = max(0, self.keys[i].stop - self.keys[i].start)
 
     def result_shape(self):
         """
-        Return the expected shape of the result of applying the index
+        Return the expected shape of the result of applying the index.
+        Any dimensions where the key was a scalar are dropped.
         """
-        # Find the shape if we apply the slices
-        result_shape = []
-        for i, key in enumerate(self.keys):
-            if isinstance(key, slice):
-                # This key is a slice object
-                assert key.step == 1
-                n = max(0, key.stop - key.start)
-            else:
-                # This key is an array
-                assert isinstance(key, np.ndarray)
-                n = len(key)
-            result_shape.append(n)
-
-        # Remove any dimensions where the index was a scalar
-        return np.asarray(result_shape, dtype=int)[self.mask]
-
-    def to_string(self):
-        """
-        Convert the list of slices to a slice string
-        """
-        items = []
-        for key in self.keys:
-            if isinstance(key, slice):
-                items.append(f"{key.start}:{key.stop}")
-            else:
-                raise NotImplementedError("Multi-slicing not implemented yet!")
-        return ",".join(items)
+        return self.count[self.mask]
 
     def to_list(self):
         """
         Convert the list of slices to nested lists, suitable for msgpack
         """
-        items = []
-        for key in self.keys:
-            if isinstance(key, slice):
-                items.append([key.start, key.stop-key.start])
-            else:
-                raise NotImplementedError("Multi-slicing not implemented yet!")
-        return items
+        return [[int(s), int(c)] for s, c in zip(self.start, self.count)]
 
-    def can_concatenate(self, other):
+
+class MultiSlice:
+    """
+    Class used to generate a combined request for multiple slices
+
+    Input is a list of NormalizedSlice objects which must be identical
+    in all dimensions but the first. Slices will be concatenated along the
+    first dimension.
+    """
+    def __init__(self, slice_list):
+
+        # Check that we have at least one slice
+        if len(slice_list) == 0:
+            raise ValueError("Cannot request zero slices")
+
+        # The dataset must not be scalar
+        if slice_list[0].rank == 0:
+            raise ValueError("Cannot request multiple slices of a scalar dataset")
+
+        # Check that all of the slices can be concatenated along the first dimension:
+        # they must be identical in dimensions after the first
+        first_nd_slice = slice_list[0]
+        for nd_slice in slice_list[1:]:
+            if (np.any(first_nd_slice.start[1:] != nd_slice.start[1:]) or
+                np.any(first_nd_slice.count[1:] != nd_slice.count[1:]) or
+                np.any(first_nd_slice.mask[1:] != nd_slice.mask[1:])):
+                raise ValueError("Slices cannot be concatenated along the first dimension")
+
+        # Find all offsets and lengths in the first dimension
+        starts = [int(nd_slice.start[0]) for nd_slice in slice_list]
+        counts = [int(nd_slice.count[0]) for nd_slice in slice_list]
+
+        # Construct slice descriptor for this set of slices
+        self.descriptor = [[starts, counts]]
+        for i in range(1, first_nd_slice.rank):
+            self.descriptor.append([int(first_nd_slice.start[i]),
+                                    int(first_nd_slice.count[i])])
+
+        # We never drop the first dimension when concatenating slices
+        self.mask = first_nd_slice.mask.copy()
+        self.mask[0] = True
+
+        # Compute shape of the result
+        result_shape = first_nd_slice.count.copy()
+        result_shape[0] = sum(counts)
+        self._result_shape = result_shape[self.mask]
+
+    def to_list(self):
+        return self.descriptor
+
+    def result_shape(self):
         """
-        Return True if this index can be concatenated along the first dimension with other.
+        Return the expected shape of the result. Any dimensions (other than
+        the first) where the key was a scalar are dropped.
         """
-        # Must be at least one dimensional to concatenate slices
-        if len(self.keys) == 0:
-            return False
-
-        # Both slices must have the same number of dimensions
-        if len(self.keys) != len(other.keys):
-            return False
-
-        # Must have the same size in all dimensions but the first
-        for i in range(1, len(self.keys)):
-            if self.keys[i] != other.keys[i]:
-                return False
-
-        # Otherwise, shapes are compatible
-        return True
+        return self._result_shape

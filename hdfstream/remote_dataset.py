@@ -67,18 +67,17 @@ class RemoteDataset:
         """
         Fetch a dataset slice by indexing this object.
         """
-
         # Parse the key into a tuple of slice objects
-        index = su.DatasetIndex(self.shape, key)
+        nd_slice = su.NormalizedSlice(self.shape, key)
 
         # Get (offset, length) pairs describing the slice(s) to read
-        slice_descriptor = index.to_list()
+        slice_descriptor = nd_slice.to_list()
 
         if self.data is None:
             # Dataset is not in memory, so request it from the server
             data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
             # Remove dimensions where the index was a scalar
-            data = data.reshape(index.result_shape())
+            data = data.reshape(nd_slice.result_shape())
             # In case of scalar results, don't wrap in a numpy scalar
             if isinstance(data, np.ndarray):
                 if len(data.shape) == 0:
@@ -114,10 +113,10 @@ class RemoteDataset:
             dest_sel = Ellipsis
 
         # Parse the source selection into a tuple of slice objects
-        index = su.DatasetIndex(shape, source_sel)
+        nd_slice = su.NormalizedSlice(shape, source_sel)
 
-        # Get (offset, length) pairs describing the slice(s) to read
-        slice_descriptor = index.to_list()
+        # Get (offset, length) pairs describing the slice to read
+        slice_descriptor = nd_slice.to_list()
 
         # Get a view of the destination selection, making sure we do not make a copy
         dest_view = array[dest_sel]
@@ -169,32 +168,15 @@ class RemoteDataset:
         :type dest: np.ndarray, optional
 
         """
-        nr_slices = len(slices)
-        nr_dims = len(slices[0])
+        # Parse the list of slices
+        nd_slices = []
+        for s in slices:
+            nd_slices.append(su.NormalizedSlice(self.shape, s))
 
-        # We can't handle requests for zero slices
-        if nr_slices == 0:
-            raise ValueError("Unable to request zero slices from the server!")
-
-        # Make a list of slice descriptors
-        index_list = []
-        for nd_slice in slices:
-            index_list.append(su.DatasetIndex(self.shape, nd_slice))
-
-        # Check that the slices are identical in dimensions other than the first
-        for il in index_list[1:]:
-            if not il.can_concatenate(index_list[0]):
-                raise ValueError("Slices cannot be concatenated along the first dimension")
-
-        # Make a descriptor to request the slices
-        starts = [int(il.keys[0].start) for il in index_list]
-        counts = [int(il.keys[0].stop) - int(il.keys[0].start) for il in index_list]
-        slice_descriptor = index_list[0].to_list()
-        slice_descriptor[0] = [starts, counts]
-
-        # Determine the shape of the result
-        result_shape = index_list[0].result_shape()
-        result_shape[0] = sum(counts)
+        # Make a descriptor to fetch the combined slices in one request
+        multislice = su.MultiSlice(nd_slices)
+        slice_descriptor = multislice.to_list()
+        result_shape = multislice.result_shape()
 
         if dest is None:
             # Make the request and return a new array
