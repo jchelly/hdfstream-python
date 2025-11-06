@@ -3,6 +3,8 @@
 import numpy as np
 import collections.abc
 
+import hdfstream.slice_utils as su
+
 
 class RemoteDataset:
     """
@@ -118,19 +120,18 @@ class RemoteDataset:
         """
         Fetch a dataset slice by indexing this object.
         """
-        # Ensure key is at least a one element sequence
-        if not isinstance(key, collections.abc.Sequence):
-            key = (key,)
 
-        # Convert the key to a slice string
-        slice_string, dim_mask = self._make_slice_string(key)
+        # Parse the key into a tuple of slice objects
+        index = su.DatasetIndex(self.shape, key)
+
+        # Get (offset, length) pairs describing the slice(s) to read
+        slice_descriptor = index.to_list()
 
         if self.data is None:
             # Dataset is not in memory, so request it from the server
-            data = self.connection.request_slice(self.file_path, self.name, slice_string)
+            data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
             # Remove dimensions where the index was a scalar
-            result_dims = np.asarray(data.shape, dtype=int)[dim_mask]
-            data = data.reshape(result_dims)
+            data = data.reshape(index.result_shape())
             # In case of scalar results, don't wrap in a numpy scalar
             if isinstance(data, np.ndarray):
                 if len(data.shape) == 0:
@@ -164,7 +165,12 @@ class RemoteDataset:
             source_sel = Ellipsis
         if dest_sel is None:
             dest_sel = Ellipsis
-        slice_string, _ = self._make_slice_string(source_sel)
+
+        # Parse the source selection into a tuple of slice objects
+        index = su.DatasetIndex(shape, source_sel)
+
+        # Get (offset, length) pairs describing the slice(s) to read
+        slice_descriptor = index.to_list()
 
         # Get a view of the destination selection, making sure we do not make a copy
         dest_view = array[dest_sel]
@@ -175,12 +181,12 @@ class RemoteDataset:
 
         if array.dtype == self.dtype:
             # The data types match, so we can download directly into the destination buffer
-            self.connection.request_slice_into(self.file_path, self.name, slice_string, dest_view)
+            self.connection.request_slice_into(self.file_path, self.name, slice_descriptor, dest_view)
         else:
             # The data types are different, so we have to make a copy and let numpy convert the values
             if not np.can_cast(self.dtype, array.dtype, casting='safe'):
                 raise RuntimeError("Cannot safely cast {self.dtype} to {array.dtype}")
-            dest_view[...] = self.connection.request_slice(self.file_path, self.name, slice_string)
+            dest_view[...] = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
 
     def __len__(self):
         if len(self.shape) >= 1:

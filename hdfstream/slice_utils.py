@@ -2,6 +2,16 @@
 
 import numpy as np
 
+
+# # Encoding an array of ints to a msgpack array
+# from msgpack import Packer
+
+# packer = Packer()
+# packed = b''.join([
+#     packer.pack_array_header(len(arr)),
+#     *map(packer.pack, arr)
+# ])
+
 def is_integer(i):
     return isinstance(i, (int, np.integer))
 
@@ -65,12 +75,14 @@ class DatasetIndex:
 
         * Integer
         * Slice object
-        * List of indexes
-        * Array of indexes
+        * List of integer or boolean indexes
+        * Array of integer or boolean indexes
 
         We might also have up to one Ellipsis in place of zero or more
         dimensions. We're only going to allow lists and arrays as the index
-        in the first dimension here. Boolean indexing is not supported.
+        in the first dimension here.
+
+        Slices with a step size other than 1 are not supported.
 
         :param shape: shape of the dataset that was indexed
         :type shape: tuple of integers
@@ -81,12 +93,13 @@ class DatasetIndex:
         # Mask to determine dimensions of the result: we will drop dimensions
         # where the index was a scalar, for consistency with numpy.
         self.mask = np.ones(len(shape), dtype=bool)
+        self.shape = np.asarray(shape, dtype=int)
 
         # Handle the case where the dataset is a scalar. Only an empty tuple
         # or an Ellipsis is allowed here.
         if len(shape) == 0:
             if key is Ellipsis or (isinstance(key, tuple) and len(key) == 0):
-                return ()
+                key = ()
             else:
                 raise IndexError("Scalars can only be indexed with () or Ellipsis")
 
@@ -103,7 +116,7 @@ class DatasetIndex:
             raise IndexError("Index tuples may only contain one Ellipsis")
         elif nr_ellipsis == 1:
             i = key.index(Ellipsis)
-            key = key[:i]+(slice(None),)*nr_missing+key[i+1:]
+            key = key[:i]+(slice(None),)*(nr_missing+1)+key[i+1:]
 
         # If we still don't have one entry per dimension, append some slice(None)
         nr_missing = len(shape) - len(key)
@@ -142,3 +155,62 @@ class DatasetIndex:
                 self.mask[i] = False
             else:
                 raise IndexError("Indexes must be integer, slice, Ellipsis or array type")
+
+        # Check that any slices have a step size of 1
+        for key in self.keys:
+            if isinstance(key, slice):
+                if key.step != 1:
+                    raise IndexError("Slices must have step=1")
+
+        # If the first index is an array, check if it's ascending and unique
+        self.sorted_index = None
+        self.sorted_inverse = None
+        if len(self.keys) > 0 and isinstance(self.keys[0], np.ndarray) and len(self.keys[0]) > 1:
+            diff = self.keys[1:] - self.keys[:-1]
+            if np.any(diff <= 0):
+                # Compute a sorted, unique index in the first dimension
+                self.sorted_index, self.sorted_inverse = np.unique(key, return_inverse=True)
+
+    def result_shape(self):
+        """
+        Return the expected shape of the result of applying the index
+        """
+        # Find the shape if we apply the slices
+        result_shape = []
+        for i, key in enumerate(self.keys):
+            if isinstance(key, slice):
+                # This key is a slice object
+                assert key.step == 1
+                n = max(0, key.stop - key.start)
+            else:
+                # This key is an array
+                assert isinstance(key, np.ndarray)
+                n = len(key)
+            result_shape.append(n)
+
+        # Remove any dimensions where the index was a scalar
+        return np.asarray(result_shape, dtype=int)[self.mask]
+
+    def to_string(self):
+        """
+        Convert the list of slices to a slice string
+        """
+        items = []
+        for key in self.keys:
+            if isinstance(key, slice):
+                items.append(f"{key.start}:{key.stop}")
+            else:
+                raise NotImplementedError("Multi-slicing not implemented yet!")
+        return ",".join(items)
+
+    def to_list(self):
+        """
+        Convert the list of slices to nested lists, suitable for msgpack
+        """
+        items = []
+        for key in self.keys:
+            if isinstance(key, slice):
+                items.append([key.start, key.stop-key.start])
+            else:
+                raise NotImplementedError("Multi-slicing not implemented yet!")
+        return items

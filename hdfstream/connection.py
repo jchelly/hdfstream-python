@@ -174,19 +174,19 @@ class Connection:
         url = f"{self.server}/msgpack/{path}"
         return self.post_and_unpack(url, params, desc=f"Object: {name}")
 
-    def request_slice(self, path, name, slice_string):
+    def request_slice(self, path, name, slice_descriptor):
         """
         Request a dataset slice. Returns a new np.ndarray.
         """
         path = path.lstrip("/")
         params = {
             "object" : name,
-            "slice"  : slice_string,
+            "slice"  : slice_descriptor,
         }
         url = f"{self.server}/msgpack/{path}"
         return self.post_and_unpack(url, params, desc=f"Slice: {name}")
 
-    def request_slice_into(self, path, name, slice_string, destination):
+    def request_slice_into(self, path, name, slice_descriptor, destination):
         """
         Request a dataset slice and read it into the supplied buffer.
 
@@ -195,7 +195,7 @@ class Connection:
         path = path.lstrip("/")
         params = {
             "object" : name,
-            "slice"  : slice_string,
+            "slice"  : slice_descriptor,
         }
         url = f"{self.server}/msgpack/{path}"
         payload = msgpack.packb(params)
