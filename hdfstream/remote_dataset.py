@@ -63,59 +63,6 @@ class RemoteDataset:
             if hasattr(arr, "shape") and len(arr.shape) == 0:
                 self.attrs[name] = arr[()]
 
-    def _make_slice_string(self, key):
-        """
-        Given a key suitable for indexing an ndarray, generate a slice
-        specifier string for the web API.
-        """
-
-        # Ensure key is at least a one element sequence
-        if not isinstance(key, collections.abc.Sequence):
-            key = (key,)
-
-        # Loop over dimensions
-        slices = []
-        dim_nr = 0
-        found_ellipsis = False
-        dim_mask = []
-        for k in key:
-            if isinstance(k, int):
-                # This is a single integer index
-                slices.append(str(k))
-                dim_mask.append(False)
-                dim_nr += 1
-            elif isinstance(k, slice):
-                # This is a slice. Step must be one, if specified.
-                if k.step != 1 and k.step != None:
-                    raise KeyError("RemoteDataset slices with step != 1 are not supported")
-                # Find start and stop parameters
-                slice_start = k.start if k.start is not None else 0
-                slice_stop = k.stop if k.stop is not None else self.shape[dim_nr]
-                dim_mask.append(True)
-                slices.append(str(slice_start)+":"+str(slice_stop))
-                dim_nr += 1
-            elif k is Ellipsis:
-                # This is an Ellipsis. Selects all elements in as many dimensions as needed.
-                if found_ellipsis:
-                    raise KeyError("RemoteDataset slices can only contain one Ellipsis")
-                ellipsis_size = len(self.shape) - len(key) + 1
-                if ellipsis_size < 0:
-                    raise KeyError("RemoteDataset slice has more dimensions that the dataset")
-                for i in range(ellipsis_size):
-                    dim_mask.append(True)
-                    slices.append("0:"+str(self.shape[dim_nr]))
-                    dim_nr += 1
-                found_ellipsis = True
-            else:
-                raise KeyError("RemoteDataset index must be integer or slice")
-
-        # If too few slices were specified, read all elements in the remaining dimensions
-        for i in range(dim_nr, len(self.shape)):
-            dim_mask.append(True)
-            slices.append("0:"+str(self.shape[i]))
-
-        return ",".join(slices), np.asarray(dim_mask, dtype=bool)
-
     def __getitem__(self, key):
         """
         Fetch a dataset slice by indexing this object.
@@ -200,13 +147,13 @@ class RemoteDataset:
         """
         pass
 
-    def request_slices(self, keys, dest=None):
+    def request_slices(self, slices, dest=None):
         """
-        Request a series of dataset slices from the server and return a single
-        array with the slices concatenated along the first dimension. Slices
-        may only differ in the first dimension, must be in ascending order of
-        starting index in the first dimension, and must not overlap. Example
-        usage::
+        Request a series of dataset slices from the server and return a
+        single array with the slices concatenated along the first
+        dimension. Slices may only differ in the first dimension, must
+        be in ascending order of starting index in the first dimension,
+        and must not overlap. Slices must have step=1. Example usage::
 
           slices = []
           slices.append(np.s_[0:10,:])
@@ -216,27 +163,47 @@ class RemoteDataset:
         If the optional dest parameter is used the result is written to dest.
         Otherwise a new np.ndarray is returned.
 
-        :param keys: list of slices to read
-        :type keys: list of slices
+        :param keys: list of multidimensional slices to read
+        :type keys: list of tuples of slice objects
         :param dest: destination buffer to write to, defaults to None
         :type dest: np.ndarray, optional
+
         """
-        # Construct the slice specifier string
-        slices = []
-        for key in keys:
-            slice_string, dim_mask = self._make_slice_string(key)
-            slices.append(slice_string)
-        slice_string = ";".join(slices)
+        nr_slices = len(slices)
+        nr_dims = len(slices[0])
+
+        # We can't handle requests for zero slices
+        if nr_slices == 0:
+            raise ValueError("Unable to request zero slices from the server!")
+
+        # Make a list of slice descriptors
+        index_list = []
+        for nd_slice in slices:
+            index_list.append(su.DatasetIndex(self.shape, nd_slice))
+
+        # Check that the slices are identical in dimensions other than the first
+        for il in index_list[1:]:
+            if not il.can_concatenate(index_list[0]):
+                raise ValueError("Slices cannot be concatenated along the first dimension")
+
+        # Make a descriptor to request the slices
+        starts = [int(il.keys[0].start) for il in index_list]
+        counts = [int(il.keys[0].stop) - int(il.keys[0].start) for il in index_list]
+        slice_descriptor = index_list[0].to_list()
+        slice_descriptor[0] = [starts, counts]
+
+        # Determine the shape of the result
+        result_shape = index_list[0].result_shape()
+        result_shape[0] = sum(counts)
 
         if dest is None:
             # Make the request and return a new array
-            data = self.connection.request_slice(self.file_path, self.name, slice_string)
+            data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
             # Remove dimensions where the index was a scalar
-            result_dims = np.asarray(data.shape, dtype=int)[dim_mask]
-            return data.reshape(result_dims)
+            return data.reshape(result_shape)
         else:
             # Download the data into the supplied destination array's buffer
-            self.connection.request_slice_into(self.file_path, self.name, slice_string, dest)
+            self.connection.request_slice_into(self.file_path, self.name, slice_descriptor, dest)
 
     def _copy_self(self, dest, name, shallow=False, expand_soft=False, recursive=True):
         """

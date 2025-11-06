@@ -69,7 +69,8 @@ class DatasetIndex:
         Converts the supplied key into a tuple of slices with one element for
         each dimension in the dataset. Any Ellipsis are expanded into
         one or more slice(None) and if neccessary we pad out missing dimensions
-        with slice(None).
+        with slice(None). Any slice(None) are then replaced with explicit
+        integer ranges based on the size of the dataset.
 
         The index for each dimension may be any of:
 
@@ -214,3 +215,23 @@ class DatasetIndex:
             else:
                 raise NotImplementedError("Multi-slicing not implemented yet!")
         return items
+
+    def can_concatenate(self, other):
+        """
+        Return True if this index can be concatenated along the first dimension with other.
+        """
+        # Must be at least one dimensional to concatenate slices
+        if len(self.keys) == 0:
+            return False
+
+        # Both slices must have the same number of dimensions
+        if len(self.keys) != len(other.keys):
+            return False
+
+        # Must have the same size in all dimensions but the first
+        for i in range(1, len(self.keys)):
+            if self.keys[i] != other.keys[i]:
+                return False
+
+        # Otherwise, shapes are compatible
+        return True
