@@ -305,6 +305,10 @@ class ArrayIndexedSlice:
             if np.any(index[1:] <= index[:-1]):
                 raise IndexError("Index array should be sorted and unique")
 
+        # Don't allow negative indexes
+        if np.any(index < 0):
+            raise IndexError("Negative indexes are not supported")
+
         # Convert to arrays of starts and counts in the first dimension:
         # Treat each index as a one element range then merge adjacent ranges.
         self.starts, self.counts = merge_slices(index, np.ones(len(index), dtype=int))
