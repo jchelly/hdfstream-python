@@ -77,6 +77,9 @@ class RemoteDataset:
             data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
             # Remove dimensions where the index was a scalar
             data = data.reshape(nd_slice.result_shape())
+            # Might need to reorder the output if key included an array
+            if hasattr(nd_slice, "reorder"):
+                data = nd_slice.reorder(data)
             # In case of scalar results, don't wrap in a numpy scalar
             if isinstance(data, np.ndarray):
                 if len(data.shape) == 0:

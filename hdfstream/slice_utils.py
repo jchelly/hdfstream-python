@@ -172,14 +172,17 @@ class NormalizedSlice:
         for i, index in enumerate(key):
             if isinstance(index, slice):
                 # Index is a slice object. Expand out any Nones in it.
+                # Also converts negative start or stop values to positive.
                 self.keys.append(slice(*index.indices(shape[i])))
             elif is_integer(index):
                 # Index is a built in or numpy scalar integer
                 j = int(index)
+                if j < 0:
+                    j += shape[i] # negative indexes count from the end
                 self.keys.append(slice(j, j+1, 1))
                 self.mask[i] = False
             else:
-                raise IndexError("Indexes must be integer, slice, or Ellipsis")
+                raise IndexError("Simple slice indexes must be integer, slice, or Ellipsis")
 
         # Check that any slices have a step size of 1
         for key in self.keys:
@@ -300,20 +303,23 @@ class ArrayIndexedSlice:
         # If we now have a boolean mask array, convert to integer indexes
         index = ensure_integer_index_array(index, shape[0])
 
-        # Ensure elements are sorted and unique
+        # Negative indexes count from the end of the array
+        is_negative = (index < 0)
+        index[is_negative] += shape[0]
+        assert np.all(index >= 0)
+
+        # Ensure index elements are sorted and unique, and store the inverse so
+        # we can restore the requested ordering in the output array later.
+        self.inverse_index = None
         if len(index) > 1:
             if np.any(index[1:] <= index[:-1]):
-                raise IndexError("Index array should be sorted and unique")
-
-        # Don't allow negative indexes
-        if np.any(index < 0):
-            raise IndexError("Negative indexes are not supported")
+                index, self.inverse_index = np.unique(index, return_inverse=True)
 
         # Convert to arrays of starts and counts in the first dimension:
         # Treat each index as a one element range then merge adjacent ranges.
         self.starts, self.counts = merge_slices(index, np.ones(len(index), dtype=int))
 
-        # Interpret indexes in any remaining dimensions
+        # Interpret indexes in any remaining dimensions as simple slices
         self.nd_slice = NormalizedSlice(shape[1:], key[1:])
 
     def to_list(self):
@@ -340,6 +346,15 @@ class ArrayIndexedSlice:
         shape = np.asarray([sum(self.counts),] + [int(n) for n in self.nd_slice.result_shape()], dtype=int)
         return shape
 
+    def reorder(self, arr):
+        """
+        If the index array was not sorted and unique, we may have to reorder
+        the result.
+        """
+        if self.inverse_index is None:
+            return arr
+        else:
+            return arr[self.inverse_index,...]
 
 def parse_key(shape, key):
     """
