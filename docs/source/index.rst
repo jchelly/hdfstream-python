@@ -25,6 +25,7 @@ See the links below for usage information and the API reference.
    groups
    datasets
    multi_slice
+   advanced_indexing
    aliases
    lazy_loading
    testing
