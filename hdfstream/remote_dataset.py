@@ -67,8 +67,7 @@ class RemoteDataset:
         """
         Fetch a dataset slice by indexing this object.
         """
-        # Parse the key into a tuple of slice objects
-        nd_slice = su.NormalizedSlice(self.shape, key)
+        nd_slice = su.parse_key(self.shape, key)
 
         # Get (offset, length) pairs describing the slice(s) to read
         slice_descriptor = nd_slice.to_list()

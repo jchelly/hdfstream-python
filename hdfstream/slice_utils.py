@@ -59,6 +59,52 @@ def ensure_integer_index_array(index, size):
         raise IndexError("Index arrays must be of integer or boolean type")
 
 
+def merge_slices(starts, counts):
+    """
+    Given a set of slices where slice i starts at index starts[i] and contains
+    counts[i] elements, merge any adjacent slices and return new starts and
+    counts arrays.
+
+    :param starts: 1D array with starting offset of each slice
+    :type  starts: np.ndarray
+    :param counts: 1D array with length of each slice
+    :type  counts: np.ndarray
+
+    :return: new (starts, counts) tuple with the merged slices
+    :rtype: (numpy.ndarray, numpy.ndarray)
+    """
+
+    starts = np.asarray(starts, dtype=int)
+    counts = np.asarray(counts, dtype=int)
+
+    # First, eliminate any zero length slices
+    keep = counts > 0
+    starts = starts[keep]
+    ends = starts + counts[keep]
+
+    # Determine number of slices
+    nr_slices = len(starts)
+    if len(ends) != nr_slices:
+        raise ValueError("starts and counts arrays must be the same size!")
+
+    # Determine starts to keep: every starting offset which is NOT
+    # equal to the end of the previous slice. Always keep the first.
+    keep_start = np.ones(nr_slices, dtype=bool)
+    keep_start[1:] = (starts[1:] != ends[:-1])
+
+    # Determine ends to keep: every end offset which is NOT equal
+    # to the start of the next slice. Always keep the last one.
+    keep_end = np.ones(nr_slices, dtype=bool)
+    keep_end[:-1] = (ends[:-1] != starts[1:])
+
+    # Discard unwanted elements
+    assert len(starts) == len(ends)
+    starts = starts[keep_start]
+    counts = ends[keep_end] - starts
+
+    return starts, counts
+
+
 class NormalizedSlice:
 
     def __init__(self, shape, key):
@@ -158,6 +204,7 @@ class NormalizedSlice:
     def to_list(self):
         """
         Convert the list of slices to nested lists, suitable for msgpack
+        encoding as the slice parameter expected by the server.
         """
         return [[int(s), int(c)] for s, c in zip(self.start, self.count)]
 
@@ -174,11 +221,11 @@ class MultiSlice:
 
         # Check that we have at least one slice
         if len(slice_list) == 0:
-            raise ValueError("Cannot request zero slices")
+            raise IndexError("Cannot request zero slices")
 
         # The dataset must not be scalar
         if slice_list[0].rank == 0:
-            raise ValueError("Cannot request multiple slices of a scalar dataset")
+            raise IndexError("Cannot request multiple slices of a scalar dataset")
 
         # Check that all of the slices can be concatenated along the first dimension:
         # they must be identical in dimensions after the first
@@ -187,7 +234,7 @@ class MultiSlice:
             if (np.any(first_nd_slice.start[1:] != nd_slice.start[1:]) or
                 np.any(first_nd_slice.count[1:] != nd_slice.count[1:]) or
                 np.any(first_nd_slice.mask[1:] != nd_slice.mask[1:])):
-                raise ValueError("Slices cannot be concatenated along the first dimension")
+                raise IndexError("Slices cannot be concatenated along the first dimension")
 
         # Find all offsets and lengths in the first dimension
         starts = [int(nd_slice.start[0]) for nd_slice in slice_list]
@@ -209,6 +256,10 @@ class MultiSlice:
         self._result_shape = result_shape[self.mask]
 
     def to_list(self):
+        """
+        Convert the list of slices to nested lists, suitable for msgpack
+        encoding as the slice parameter expected by the server.
+        """
         return self.descriptor
 
     def result_shape(self):
@@ -217,3 +268,85 @@ class MultiSlice:
         the first) where the key was a scalar are dropped.
         """
         return self._result_shape
+
+
+class ArrayIndexedSlice:
+
+    def __init__(self, shape, key):
+        """
+        This class handles the case of indexing an array with a list or
+        array in the first dimension. We convert the array or list into a
+        list of slices to request from the server.
+
+        We don't allow an array as the index in any other dimension.
+        """
+
+        # Should have converted key to tuple before calling
+        assert isinstance(key, tuple)
+
+        if len(key) > len(shape):
+            raise IndexError("Too many indexes")
+        if not isinstance(key, tuple) or len(key) < 1:
+            raise IndexError("Index should be a tuple with at least one element")
+
+        # If the first element is a list, convert it to an array
+        index = key[0]
+        if isinstance(index, list):
+            index = convert_list_to_array(key[0], shape[0])
+        assert isinstance(index, np.ndarray)
+        if len(index.shape) != 1:
+            raise IndexError("Index arrays must be one dimensional")
+
+        # If we now have a boolean mask array, convert to integer indexes
+        index = ensure_integer_index_array(index, shape[0])
+
+        # Ensure elements are sorted and unique
+        if len(index) > 1:
+            if np.any(index[1:] <= index[:-1]):
+                raise IndexError("Index array should be sorted and unique")
+
+        # Convert to arrays of starts and counts in the first dimension:
+        # Treat each index as a one element range then merge adjacent ranges.
+        self.starts, self.counts = merge_slices(index, np.ones(len(index), dtype=int))
+
+        # Interpret indexes in any remaining dimensions
+        self.nd_slice = NormalizedSlice(shape[1:], key[1:])
+
+    def to_list(self):
+        """
+        Convert the list of slices to nested lists, suitable for msgpack
+        encoding as the slice parameter expected by the server.
+        """
+        # Store arrays of starts and counts in the first dimension
+        items = [
+            [[int(s) for s in self.starts], [int(c) for c in self.counts]]
+        ]
+
+        # Store scalar start and count for each subsequent dimension
+        for s, c in zip(self.nd_slice.start, self.nd_slice.count):
+            items.append([int(s),int(c)])
+
+        return items
+
+    def result_shape(self):
+        """
+        Return the expected shape of the result. Any dimensions where the key
+        was a scalar are dropped. The first dimension is always an array here.
+        """
+        shape = np.asarray([sum(self.counts),] + [int(n) for n in self.nd_slice.result_shape()], dtype=int)
+        return shape
+
+
+def parse_key(shape, key):
+    """
+    Interpret key as a NormalizedSlice or ArrayIndexedSlice
+    """
+    if isinstance(key, (np.ndarray, list)):
+        # Index is a single list or array, so wrap it in a tuple
+        return ArrayIndexedSlice(shape, (key,))
+    if isinstance(key, tuple) and len(key) > 0 and isinstance(key[0], (np.ndarray, list)):
+        # Index is a tuple with a list or array as the first element
+        return ArrayIndexedSlice(shape, key)
+    else:
+        # Index is something else
+        return NormalizedSlice(shape, key)
