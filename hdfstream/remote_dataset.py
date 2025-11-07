@@ -113,7 +113,7 @@ class RemoteDataset:
             dest_sel = Ellipsis
 
         # Parse the source selection into a tuple of slice objects
-        nd_slice = su.NormalizedSlice(shape, source_sel)
+        nd_slice = su.NormalizedSlice(self.shape, source_sel)
 
         # Get (offset, length) pairs describing the slice to read
         slice_descriptor = nd_slice.to_list()
