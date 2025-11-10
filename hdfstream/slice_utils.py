@@ -197,6 +197,11 @@ class NormalizedSlice:
             self.start[i] = self.keys[i].start
             self.count[i] = max(0, self.keys[i].stop - self.keys[i].start)
 
+        # Bounds check
+        for i in range(self.rank):
+            if self.start[i] < 0 or self.start[i]+self.count[i] > shape[i]:
+                raise IndexError("Slice is out of bounds")
+
     def result_shape(self):
         """
         Return the expected shape of the result of applying the index.
@@ -306,7 +311,6 @@ class ArrayIndexedSlice:
         # Negative indexes count from the end of the array
         is_negative = (index < 0)
         index[is_negative] += shape[0]
-        assert np.all(index >= 0)
 
         # Ensure index elements are sorted and unique, and store the inverse so
         # we can restore the requested ordering in the output array later.
@@ -314,6 +318,10 @@ class ArrayIndexedSlice:
         if len(index) > 1:
             if np.any(index[1:] <= index[:-1]):
                 index, self.inverse_index = np.unique(index, return_inverse=True)
+
+        # Bounds check
+        if np.amin(index) < 0 or np.amax(index) >= shape[0]:
+            raise IndexError("Value in index array is out of range")
 
         # Convert to arrays of starts and counts in the first dimension:
         # Treat each index as a one element range then merge adjacent ranges.
