@@ -71,7 +71,7 @@ keys_1d_arrays = [
     [5,5,5,5,5,5],
 ]
 @pytest.mark.parametrize("key", keys_1d_slices + keys_1d_arrays + [np.asarray(k, dtype=int) for k in keys_1d_arrays])
-def test_1d(dset_1d, key):
+def test_1d_valid(dset_1d, key):
     expected = dset_1d.arr[key]
     actual = dset_1d[key]
     assert expected.dtype == actual.dtype
@@ -103,3 +103,62 @@ bad_1d_arrays = [
 def test_1d_bad_array(dset_1d, key):
     with pytest.raises(IndexError):
         result = dset_1d[key]
+
+#
+# 2D dataset tests
+#
+# Test dataset is the same size as the 1D dataset but with an extra dimension
+#
+@pytest.fixture(params=list(product(cache_data, max_nr_slices)))
+def dset_2d(request):
+    cache_data, max_nr_slices = request.param
+    data = np.ndarray((100,3), dtype=int)
+    for i in range(3):
+        data[:,i] = np.arange(100, dtype=int) + i*1000
+    return DummyRemoteDataset("/filename", "objectname", data, cache=cache_data, max_nr_slices=max_nr_slices)
+
+# The 2D test cases are the 1D test cases with various indexes in the second dimension
+keys_in_second_dim = [
+    np.s_[...],
+    np.s_[:],
+    0,
+    1,
+    2,
+    np.s_[0:3],
+    np.s_[0:2],
+    np.s_[1:2],
+]
+valid_keys_2d = list(product(keys_1d_slices+keys_1d_arrays, keys_in_second_dim))
+valid_keys_2d = [k for k in valid_keys_2d if k[0] is not Ellipsis or k[1] is not Ellipsis] # discard invalid [Ellipsis, Ellipsis] case
+@pytest.mark.parametrize("key", valid_keys_2d)
+def test_2d_valid(dset_2d, key):
+    expected = dset_2d.arr[key]
+    actual = dset_2d[key]
+    assert expected.dtype == actual.dtype
+    assert expected.shape == actual.shape
+    assert np.all(expected == actual)
+
+# Try some 2D cases with invalid slices in the first dimension
+bad_keys_2d_1 = list(product(bad_1d_slices+bad_1d_arrays, keys_in_second_dim))
+@pytest.mark.parametrize("key", bad_keys_2d_1)
+def test_2d_bad_slice_first_dim(dset_2d, key):
+    with pytest.raises(IndexError):
+        result = dset_2d[key]
+
+# Try some 2D cases with invalid slices in the second dimension
+bad_keys_in_second_dim = [
+    4, # out of bounds
+    -4,
+    [0,3], # not a simple slice
+    np.s_[0:3:2], # step is not 1
+]
+bad_keys_2d_2 = list(product(keys_1d_slices+keys_1d_arrays, bad_keys_in_second_dim))
+@pytest.mark.parametrize("key", bad_keys_2d_2)
+def test_2d_bad_slice_second_dim(dset_2d, key):
+    with pytest.raises(IndexError):
+        result = dset_2d[key]
+
+# Make sure we're not allowing two Ellipsis
+def test_2d_two_ellipsis(dset_2d):
+    with pytest.raises(IndexError):
+        result = dset_2d[...,...]

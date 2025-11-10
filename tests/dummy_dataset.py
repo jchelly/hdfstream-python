@@ -82,7 +82,7 @@ class DummyConnection:
         """
         Request a dataset slice and read it into the supplied buffer.
         """
-        destination[...] = self.request_slice(path, name, slice_descriptor)
+        destination[...] = self.request_slice(path, name, slice_descriptor).reshape(destination.shape)
 
 
 class DummyRemoteDataset(RemoteDataset):
