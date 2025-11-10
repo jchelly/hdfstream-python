@@ -107,3 +107,4 @@ class DummyRemoteDataset(RemoteDataset):
         self.name = name
         self.file_path = file_path
         self.connection = DummyConnection(file_path, name, data)
+        self.arr = data
