@@ -71,3 +71,27 @@ def test_dataset_multi_slice(eagle_snap_file):
         dataset.request_slices(slices, dest=buf)
         assert np.all(buf == np.concatenate([expected_pos[s] for s in slices], axis=0))
         assert np.all(slice_data == buf)
+
+# Try indexing a dataset with an array in the first dimension
+index = [
+    np.s_[np.arange(1000),:],
+    np.s_[np.arange(1000),1],
+    np.s_[np.arange(1000)[::-1],:],
+    np.s_[np.arange(1000)[::-1],2],
+    np.s_[[5,5,5,6,7,7,8,8,8,8,100,101,102,103,19,20,17], :],
+]
+@pytest.mark.vcr
+@pytest.mark.parametrize("index", index)
+def test_dataset_index_with_array(eagle_snap_file, index):
+
+    # Open a HDF5 dataset
+    dataset = eagle_snap_file()["/PartType1/Coordinates"]
+    assert isinstance(dataset, hdfstream.RemoteDataset)
+
+    # Locate the test data: this contains the coordinates of the first n particles
+    expected_pos = snap_data["ptype1_pos"]
+    n = expected_pos.shape[0]
+
+    # Try slicing the dataset and check the result against the test data
+    slice_data = dataset[index]
+    assert np.all(slice_data == expected_pos[index])
