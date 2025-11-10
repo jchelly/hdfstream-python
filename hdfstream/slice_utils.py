@@ -349,7 +349,7 @@ class ArrayIndexedSlice:
             items = [[self.starts[i1:i2], self.counts[i1:i2]]]
             for s, c in zip(self.nd_slice.start, self.nd_slice.count):
                 items.append([int(s),int(c)])
-            yield ((i2-i1), items)
+            yield (sum(self.counts[i1:i2]), items)
 
     def result_shape(self):
         """

@@ -80,7 +80,7 @@ class RemoteDataset:
                 data = np.ndarray(nd_slice.result_shape(), dtype=self.dtype)
                 offset = 0
                 for n, params in nd_slice.to_generator(_max_nr_slices):
-                    self.connection.request_slice_into(self.file_path, self.name, slice_descriptor, data[offset:offset+n,...])
+                    self.connection.request_slice_into(self.file_path, self.name, params, data[offset:offset+n,...])
                     offset += n
             else:
                 # Send a single request for the data
