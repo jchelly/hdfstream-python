@@ -73,9 +73,6 @@ class RemoteDataset:
         """
         nd_slice = su.parse_key(self.shape, key)
 
-        # Get (offset, length) pairs describing the slice(s) to read
-        slice_descriptor = nd_slice.to_list()
-
         if self.data is None:
             # Data is not in memory, so we'll need to request it
             if hasattr(nd_slice, "to_generator"):
@@ -87,7 +84,7 @@ class RemoteDataset:
                     offset += n
             else:
                 # Send a single request for the data
-                data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
+                data = self.connection.request_slice(self.file_path, self.name, nd_slice.to_list())
             # Remove dimensions where the index was a scalar
             data = data.reshape(nd_slice.result_shape())
             # Might need to reorder the output if key included an array
