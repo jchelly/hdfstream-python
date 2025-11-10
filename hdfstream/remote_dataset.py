@@ -6,6 +6,10 @@ import collections.abc
 import hdfstream.slice_utils as su
 
 
+# This limits how many slices we request from the server at once
+_max_nr_slices = 16777216
+
+
 class RemoteDataset:
     """
     This class represents a HDF5 dataset in a file on the server. To open a
@@ -73,8 +77,17 @@ class RemoteDataset:
         slice_descriptor = nd_slice.to_list()
 
         if self.data is None:
-            # Dataset is not in memory, so request it from the server
-            data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
+            # Data is not in memory, so we'll need to request it
+            if hasattr(nd_slice, "to_generator"):
+                # Might need to chunk the request if we indexed the dataset with a large array
+                data = np.ndarray(nd_slice.result_shape(), dtype=self.dtype)
+                offset = 0
+                for n, params in nd_slice.to_generator(_max_nr_slices):
+                    self.connection.request_slice_into(self.file_path, self.name, slice_descriptor, data[offset:offset+n,...])
+                    offset += n
+            else:
+                # Send a single request for the data
+                data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
             # Remove dimensions where the index was a scalar
             data = data.reshape(nd_slice.result_shape())
             # Might need to reorder the output if key included an array

@@ -338,6 +338,23 @@ class ArrayIndexedSlice:
 
         return items
 
+    def to_generator(self, max_nr_slices):
+        """
+        Generator function which yields parameters for multiple requests.
+        This is to split requests which would exceed the server's maximum
+        index array size.
+        """
+        n = len(self.starts)
+        for offset in range(0, n, max_nr_slices):
+            i1 = offset
+            i2 = min(offset + max_nr_slices, n)
+            items = [
+                [[int(s) for s in self.starts[i1:i2]], [int(c) for c in self.counts[i1:i2]]]
+            ]
+            for s, c in zip(self.nd_slice.start, self.nd_slice.count):
+                items.append([int(s),int(c)])
+            yield ((i2-i1), items)
+
     def result_shape(self):
         """
         Return the expected shape of the result. Any dimensions where the key
