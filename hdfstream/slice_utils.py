@@ -328,9 +328,7 @@ class ArrayIndexedSlice:
         encoding as the slice parameter expected by the server.
         """
         # Store arrays of starts and counts in the first dimension
-        items = [
-            [[int(s) for s in self.starts], [int(c) for c in self.counts]]
-        ]
+        items = [[self.starts, self.counts]]
 
         # Store scalar start and count for each subsequent dimension
         for s, c in zip(self.nd_slice.start, self.nd_slice.count):
@@ -348,9 +346,7 @@ class ArrayIndexedSlice:
         for offset in range(0, n, max_nr_slices):
             i1 = offset
             i2 = min(offset + max_nr_slices, n)
-            items = [
-                [[int(s) for s in self.starts[i1:i2]], [int(c) for c in self.counts[i1:i2]]]
-            ]
+            items = [[self.starts[i1:i2], self.counts[i1:i2]]]
             for s, c in zip(self.nd_slice.start, self.nd_slice.count):
                 items.append([int(s),int(c)])
             yield ((i2-i1), items)

@@ -70,6 +70,17 @@ def raise_for_status(response):
             raise HDFStreamRequestError(message)
 
 
+def convert_array(obj):
+    """
+    If obj is a 1D numpy array of integers, convert it to a list so that
+    it can be msgpack encoded.
+    """
+    if isinstance(obj, np.ndarray) and obj.ndim == 1 and np.issubdtype(obj.dtype, np.integer):
+        return obj.tolist()
+    else:
+        return obj
+
+
 class Connection:
     """
     Class to store http session information and make requests
@@ -145,7 +156,7 @@ class Connection:
         """
         if params is None:
             params = {}
-        payload = msgpack.packb(params)
+        payload = msgpack.packb(params, default=convert_array)
         headers = {"Content-Type": "application/x-msgpack"}
         with _maybe_suppress_cert_warnings():
             with self.session.post(url, data=payload, headers=headers, stream=True, verify=_verify_cert) as response:
@@ -198,7 +209,7 @@ class Connection:
             "slice"  : slice_descriptor,
         }
         url = f"{self.server}/msgpack/{path}"
-        payload = msgpack.packb(params)
+        payload = msgpack.packb(params, default=convert_array)
         headers = {"Content-Type": "application/x-msgpack"}
         with _maybe_suppress_cert_warnings():
             with self.session.post(url, data=payload, headers=headers, stream=True, verify=_verify_cert) as response:
