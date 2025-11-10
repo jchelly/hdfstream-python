@@ -2,8 +2,9 @@
 
 import numpy as np
 import pytest
-import hdfstream
+from itertools import product
 
+import hdfstream
 from dummy_dataset import DummyRemoteDataset
 
 #
@@ -27,14 +28,17 @@ def test_scalar_colon(dset_scalar):
 def test_scalar_indexed(dset_scalar):
     with pytest.raises(IndexError):
         result = dset_scalar[0]
-
 #
-# 1D dataset tests
+# 1D dataset tests: try running these with different limits on the number of
+# slices per requests, to test the chunking algorithm.
 #
-@pytest.fixture(params=[True, False])
+max_nr_slices = [1,2,3,4,8,100]
+cache_data    = [True, False]
+@pytest.fixture(params=list(product(cache_data, max_nr_slices)))
 def dset_1d(request):
+    cache_data, max_nr_slices = request.param
     data = np.arange(100, dtype=int)
-    return DummyRemoteDataset("/filename", "objectname", data, cache=request.param)
+    return DummyRemoteDataset("/filename", "objectname", data, cache=cache_data, max_nr_slices=max_nr_slices)
 
 # Some valid slices into a 1D array
 keys_1d_slices = [

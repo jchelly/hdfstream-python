@@ -99,7 +99,7 @@ class DummyRemoteDataset(RemoteDataset):
     Tests should be repeated with both settings to ensure that results do
     not depend on the lazy loading parameters.
     """
-    def __init__(self, file_path, name, data, cache=False):
+    def __init__(self, file_path, name, data, cache=False, max_nr_slices=16777216):
         self.data  = data if cache else None
         self.dtype = data.dtype
         self.shape = data.shape
@@ -108,3 +108,4 @@ class DummyRemoteDataset(RemoteDataset):
         self.file_path = file_path
         self.connection = DummyConnection(file_path, name, data)
         self.arr = data
+        self.max_nr_slices = max_nr_slices
