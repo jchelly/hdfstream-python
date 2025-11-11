@@ -169,6 +169,13 @@ def test_2d_valid(dset_2d, key):
     actual = dset_2d[key]
     assert_arrays_equal(expected, actual)
 
+# Try some 2D cases where we only provide an index in one dimension
+@pytest.mark.parametrize("key", keys_1d_slices+keys_1d_arrays)
+def test_2d_valid_one_index(dset_2d, key):
+    expected = dset_2d.arr[key]
+    actual = dset_2d[key]
+    assert_arrays_equal(expected, actual)
+
 # Try some 2D cases with invalid slices in the first dimension
 bad_keys_2d_1 = list(product(bad_1d_slices+bad_1d_arrays, keys_in_second_dim))
 @pytest.mark.parametrize("key", bad_keys_2d_1)
