@@ -110,10 +110,13 @@ def test_1d_bad_slice(dset_1d, key):
         result = dset_1d[key]
 
 # Some invalid arrays of indexes. Values don't have to be sorted or unique
-# so only out of bounds values are invalid.
+# so only out of bounds integer values are invalid. Boolean arrays need to be
+# the right size to be valid.
 bad_1d_arrays = [
     [98, 99, 100, 101],
     [-101, -100, -99, -98],
+    [True,]*101,
+    [True,]*99,
 ]
 @pytest.mark.parametrize("key", bad_1d_arrays)
 def test_1d_bad_array(dset_1d, key):
