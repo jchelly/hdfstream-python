@@ -107,6 +107,11 @@ def test_1d_leading_ellipsis(dset_1d):
     actual   = dset_1d[...,:]
     assert_arrays_equal(expected, actual)
 
+def test_1d_empty_tuple(dset_1d):
+    expected = dset_1d.arr[()]
+    actual   = dset_1d[()]
+    assert_arrays_equal(expected, actual)
+
 # Some invalid slices
 bad_1d_slices = [
     np.s_[0:100:2], # step != 1
@@ -215,4 +220,9 @@ def test_2d_leading_ellipsis(dset_2d):
 def test_2d_middle_ellipsis(dset_2d):
     expected = dset_2d.arr[:,...,:]
     actual   = dset_2d[:,...,:]
+    assert_arrays_equal(expected, actual)
+
+def test_2d_empty_tuple(dset_2d):
+    expected = dset_2d.arr[()]
+    actual   = dset_2d[()]
     assert_arrays_equal(expected, actual)
