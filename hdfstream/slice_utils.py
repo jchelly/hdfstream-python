@@ -320,7 +320,7 @@ class ArrayIndexedSlice:
                 index, self.inverse_index = np.unique(index, return_inverse=True)
 
         # Bounds check
-        if np.amin(index) < 0 or np.amax(index) >= shape[0]:
+        if len(index) > 0 and (np.amin(index) < 0 or np.amax(index) >= shape[0]):
             raise IndexError("Value in index array is out of range")
 
         # Convert to arrays of starts and counts in the first dimension:
