@@ -147,17 +147,20 @@ class NormalizedSlice:
         # Ensure the key is wrapped in a tuple and not too long
         if not isinstance(key, tuple):
             key = (key,)
-        if len(key) > len(shape):
-            raise ValueError("Too many indexes!")
 
         # Expand out any Ellipsis by replacing with zero or more slice(None)
         nr_ellipsis = sum(item is Ellipsis for item in key)
         nr_missing = len(shape) - len(key)
+        assert nr_missing >= -1 # -1 indicates we just need to remove the Ellipsis
         if nr_ellipsis > 1:
             raise ValueError("Index tuples may only contain one Ellipsis")
         elif nr_ellipsis == 1:
             i = key.index(Ellipsis)
             key = key[:i]+(slice(None),)*(nr_missing+1)+key[i+1:]
+
+        # Should not have too many dimensions at this point
+        if len(key) > len(shape):
+            raise ValueError("Too many indexes!")
 
         # If we still don't have one entry per dimension, append some slice(None)
         nr_missing = len(shape) - len(key)
