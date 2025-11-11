@@ -32,11 +32,11 @@ def test_scalar_ellipsis(dset_scalar):
     assert dset_scalar[...] == 1
 
 def test_scalar_colon(dset_scalar):
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         result = dset_scalar[:]
 
 def test_scalar_indexed(dset_scalar):
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         result = dset_scalar[0]
 #
 # 1D dataset tests: try running these with different limits on the number of
@@ -106,7 +106,7 @@ bad_1d_slices = [
 ]
 @pytest.mark.parametrize("key", bad_1d_slices)
 def test_1d_bad_slice(dset_1d, key):
-    with pytest.raises(IndexError):
+    with pytest.raises((IndexError, ValueError)):
         result = dset_1d[key]
 
 # Some invalid arrays of indexes. Values don't have to be sorted or unique
@@ -120,7 +120,7 @@ bad_1d_arrays = [
 ]
 @pytest.mark.parametrize("key", bad_1d_arrays)
 def test_1d_bad_array(dset_1d, key):
-    with pytest.raises(IndexError):
+    with pytest.raises((IndexError, ValueError)):
         result = dset_1d[key]
 
 #
@@ -162,7 +162,7 @@ def test_2d_valid(dset_2d, key):
 bad_keys_2d_1 = list(product(bad_1d_slices+bad_1d_arrays, keys_in_second_dim))
 @pytest.mark.parametrize("key", bad_keys_2d_1)
 def test_2d_bad_slice_first_dim(dset_2d, key):
-    with pytest.raises(IndexError):
+    with pytest.raises((IndexError, ValueError)):
         result = dset_2d[key]
 
 # Try some 2D cases with invalid slices in the second dimension
@@ -175,10 +175,10 @@ bad_keys_in_second_dim = [
 bad_keys_2d_2 = list(product(keys_1d_slices+keys_1d_arrays, bad_keys_in_second_dim))
 @pytest.mark.parametrize("key", bad_keys_2d_2)
 def test_2d_bad_slice_second_dim(dset_2d, key):
-    with pytest.raises(IndexError):
+    with pytest.raises((IndexError, ValueError)):
         result = dset_2d[key]
 
 # Make sure we're not allowing two Ellipsis
 def test_2d_two_ellipsis(dset_2d):
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         result = dset_2d[...,...]

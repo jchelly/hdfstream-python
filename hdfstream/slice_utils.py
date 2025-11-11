@@ -29,18 +29,18 @@ def convert_list_to_array(index, size):
         # Check that all elements are booleans
         for ind in index:
             if not isinstance(ind, bool):
-                raise IndexError("Indexes in a list must all be the same type")
+                raise ValueError("Indexes in a list must all be the same type")
         # Return the array
         return np.asarray(index, dtype=bool)
     elif is_integer(index[0]):
         # Check that all elements are integers
         for ind in index:
             if not is_integer(ind):
-                raise IndexError("Indexes in a list must all be the same type")
+                raise ValueError("Indexes in a list must all be the same type")
         # Return the array
         return np.asarray(index, dtype=int)
     else:
-        raise IndexError("Lists of indexes must contain booleans or integers")
+        raise ValueError("Lists of indexes must contain booleans or integers")
 
 
 def ensure_integer_index_array(index, size):
@@ -48,15 +48,15 @@ def ensure_integer_index_array(index, size):
     Convert the input array of indexes from boolean to integer, if necessary
     """
     if len(index.shape) > 1:
-        raise IndexError("Arrays used as indexes must not be multidimensional")
+        raise ValueError("Arrays used as indexes must not be multidimensional")
     if np.issubdtype(index.dtype, np.integer):
         return index # Already an array of integers
     elif np.issubdtype(index.dtype, np.bool_):
         if index.shape[0] != size:
-            raise IndexError("Boolean index array is the wrong size!")
+            raise ValueError("Boolean index array is the wrong size!")
         return np.arange(size, dtype=int)[index] # convert bools to integers
     else:
-        raise IndexError("Index arrays must be of integer or boolean type")
+        raise ValueError("Index arrays must be of integer or boolean type")
 
 
 def merge_slices(starts, counts):
@@ -142,19 +142,19 @@ class NormalizedSlice:
             if key is Ellipsis or (isinstance(key, tuple) and len(key) == 0):
                 key = ()
             else:
-                raise IndexError("Scalars can only be indexed with () or Ellipsis")
+                raise ValueError("Scalars can only be indexed with () or Ellipsis")
 
         # Ensure the key is wrapped in a tuple and not too long
         if not isinstance(key, tuple):
             key = (key,)
         if len(key) > len(shape):
-            raise IndexError("Too many indexes!")
+            raise ValueError("Too many indexes!")
 
         # Expand out any Ellipsis by replacing with zero or more slice(None)
         nr_ellipsis = sum(item is Ellipsis for item in key)
         nr_missing = len(shape) - len(key)
         if nr_ellipsis > 1:
-            raise IndexError("Index tuples may only contain one Ellipsis")
+            raise ValueError("Index tuples may only contain one Ellipsis")
         elif nr_ellipsis == 1:
             i = key.index(Ellipsis)
             key = key[:i]+(slice(None),)*(nr_missing+1)+key[i+1:]
@@ -182,7 +182,7 @@ class NormalizedSlice:
                 self.keys.append(slice(j, j+1, 1))
                 self.mask[i] = False
             else:
-                raise IndexError("Simple slice indexes must be integer, slice, or Ellipsis")
+                raise ValueError("Simple slice indexes must be integer, slice, or Ellipsis")
 
         # Check that any slices have a step size of 1
         for key in self.keys:
@@ -229,11 +229,11 @@ class MultiSlice:
 
         # Check that we have at least one slice
         if len(slice_list) == 0:
-            raise IndexError("Cannot request zero slices")
+            raise ValueError("Cannot request zero slices")
 
         # The dataset must not be scalar
         if slice_list[0].rank == 0:
-            raise IndexError("Cannot request multiple slices of a scalar dataset")
+            raise ValueError("Cannot request multiple slices of a scalar dataset")
 
         # Check that all of the slices can be concatenated along the first dimension:
         # they must be identical in dimensions after the first
@@ -293,9 +293,9 @@ class ArrayIndexedSlice:
         assert isinstance(key, tuple)
 
         if len(key) > len(shape):
-            raise IndexError("Too many indexes")
+            raise ValueError("Too many indexes")
         if not isinstance(key, tuple) or len(key) < 1:
-            raise IndexError("Index should be a tuple with at least one element")
+            raise ValueError("Index should be a tuple with at least one element")
 
         # If the first element is a list, convert it to an array
         index = key[0]
@@ -303,7 +303,7 @@ class ArrayIndexedSlice:
             index = convert_list_to_array(key[0], shape[0])
         assert isinstance(index, np.ndarray)
         if len(index.shape) != 1:
-            raise IndexError("Index arrays must be one dimensional")
+            raise ValueError("Index arrays must be one dimensional")
 
         # If we now have a boolean mask array, convert to integer indexes
         index = ensure_integer_index_array(index, shape[0])
