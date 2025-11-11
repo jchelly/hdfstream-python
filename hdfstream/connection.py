@@ -70,6 +70,17 @@ def raise_for_status(response):
             raise HDFStreamRequestError(message)
 
 
+def convert_array(obj):
+    """
+    If obj is a 1D numpy array of integers, convert it to a list so that
+    it can be msgpack encoded.
+    """
+    if isinstance(obj, np.ndarray) and obj.ndim == 1 and np.issubdtype(obj.dtype, np.integer):
+        return obj.tolist()
+    else:
+        return obj
+
+
 class Connection:
     """
     Class to store http session information and make requests
@@ -128,10 +139,27 @@ class Connection:
 
     def get_and_unpack(self, url, params=None, desc=None):
         """
-        Make a request and unpack the response
+        Make a GET request and unpack the response
         """
         with _maybe_suppress_cert_warnings():
             with self.session.get(url, params=params, stream=True, verify=_verify_cert) as response:
+                raise_for_status(response)
+                data = decode_response(response, desc)
+        return data
+
+    def post_and_unpack(self, url, params=None, desc=None):
+        """
+        Make a POST request and unpack the response
+
+        This avoids limits on get request parameter size. Parameters are
+        messagepack encoded.
+        """
+        if params is None:
+            params = {}
+        payload = msgpack.packb(params, default=convert_array)
+        headers = {"Content-Type": "application/x-msgpack"}
+        with _maybe_suppress_cert_warnings():
+            with self.session.post(url, data=payload, headers=headers, stream=True, verify=_verify_cert) as response:
                 raise_for_status(response)
                 data = decode_response(response, desc)
         return data
@@ -142,7 +170,7 @@ class Connection:
         """
         path = path.lstrip("/")
         url = f"{self.server}/msgpack/{path}"
-        return self.get_and_unpack(url, desc=f"Path: {path}")
+        return self.post_and_unpack(url, desc=f"Path: {path}")
 
     def request_object(self, path, name, data_size_limit, max_depth):
         """
@@ -155,21 +183,21 @@ class Connection:
             "max_depth" : max_depth
         }
         url = f"{self.server}/msgpack/{path}"
-        return self.get_and_unpack(url, params, desc=f"Object: {name}")
+        return self.post_and_unpack(url, params, desc=f"Object: {name}")
 
-    def request_slice(self, path, name, slice_string):
+    def request_slice(self, path, name, slice_descriptor):
         """
         Request a dataset slice. Returns a new np.ndarray.
         """
         path = path.lstrip("/")
         params = {
             "object" : name,
-            "slice"  : slice_string,
+            "slice"  : slice_descriptor,
         }
         url = f"{self.server}/msgpack/{path}"
-        return self.get_and_unpack(url, params, desc=f"Slice: {name}")
+        return self.post_and_unpack(url, params, desc=f"Slice: {name}")
 
-    def request_slice_into(self, path, name, slice_string, destination):
+    def request_slice_into(self, path, name, slice_descriptor, destination):
         """
         Request a dataset slice and read it into the supplied buffer.
 
@@ -178,11 +206,13 @@ class Connection:
         path = path.lstrip("/")
         params = {
             "object" : name,
-            "slice"  : slice_string,
+            "slice"  : slice_descriptor,
         }
         url = f"{self.server}/msgpack/{path}"
+        payload = msgpack.packb(params, default=convert_array)
+        headers = {"Content-Type": "application/x-msgpack"}
         with _maybe_suppress_cert_warnings():
-            with self.session.get(url, params=params, stream=True, verify=_verify_cert) as response:
+            with self.session.post(url, data=payload, headers=headers, stream=True, verify=_verify_cert) as response:
                 raise_for_status(response)
                 decode_response(response, desc=f"Slice: {name}", destination=destination)
 

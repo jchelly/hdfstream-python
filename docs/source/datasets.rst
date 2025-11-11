@@ -22,6 +22,13 @@ Parts of datasets can be downloaded using numpy slicing syntax::
 
   partial_data = dataset[0:10]
 
+.. note:: Slicing is somewhat limited compared to numpy: the step size
+          must always be 1, so slices like ``[0:10:2]`` or
+          ``[10:0:-1]`` will not work. Arrays can be used to index
+          datasets in a similar manner to numpy's "advanced" indexing,
+          but only in the first dimension. See :doc:`Advanced indexing
+          <advanced_indexing>` for details.
+
 If a dataset has attributes, they can be accessed through the ``attrs``
 dict::
 

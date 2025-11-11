@@ -3,6 +3,8 @@
 import numpy as np
 import collections.abc
 
+import hdfstream.slice_utils as su
+
 
 class RemoteDataset:
     """
@@ -49,6 +51,7 @@ class RemoteDataset:
         else:
             self.data = None
         self.parent = parent
+        self.max_nr_slices = 16777216 # maximum number of slices in one request
 
         # Compute total number of elements in the dataset
         size = 1
@@ -61,76 +64,29 @@ class RemoteDataset:
             if hasattr(arr, "shape") and len(arr.shape) == 0:
                 self.attrs[name] = arr[()]
 
-    def _make_slice_string(self, key):
-        """
-        Given a key suitable for indexing an ndarray, generate a slice
-        specifier string for the web API.
-        """
-
-        # Ensure key is at least a one element sequence
-        if not isinstance(key, collections.abc.Sequence):
-            key = (key,)
-
-        # Loop over dimensions
-        slices = []
-        dim_nr = 0
-        found_ellipsis = False
-        dim_mask = []
-        for k in key:
-            if isinstance(k, int):
-                # This is a single integer index
-                slices.append(str(k))
-                dim_mask.append(False)
-                dim_nr += 1
-            elif isinstance(k, slice):
-                # This is a slice. Step must be one, if specified.
-                if k.step != 1 and k.step != None:
-                    raise KeyError("RemoteDataset slices with step != 1 are not supported")
-                # Find start and stop parameters
-                slice_start = k.start if k.start is not None else 0
-                slice_stop = k.stop if k.stop is not None else self.shape[dim_nr]
-                dim_mask.append(True)
-                slices.append(str(slice_start)+":"+str(slice_stop))
-                dim_nr += 1
-            elif k is Ellipsis:
-                # This is an Ellipsis. Selects all elements in as many dimensions as needed.
-                if found_ellipsis:
-                    raise KeyError("RemoteDataset slices can only contain one Ellipsis")
-                ellipsis_size = len(self.shape) - len(key) + 1
-                if ellipsis_size < 0:
-                    raise KeyError("RemoteDataset slice has more dimensions that the dataset")
-                for i in range(ellipsis_size):
-                    dim_mask.append(True)
-                    slices.append("0:"+str(self.shape[dim_nr]))
-                    dim_nr += 1
-                found_ellipsis = True
-            else:
-                raise KeyError("RemoteDataset index must be integer or slice")
-
-        # If too few slices were specified, read all elements in the remaining dimensions
-        for i in range(dim_nr, len(self.shape)):
-            dim_mask.append(True)
-            slices.append("0:"+str(self.shape[i]))
-
-        return ",".join(slices), np.asarray(dim_mask, dtype=bool)
-
     def __getitem__(self, key):
         """
         Fetch a dataset slice by indexing this object.
         """
-        # Ensure key is at least a one element sequence
-        if not isinstance(key, collections.abc.Sequence):
-            key = (key,)
-
-        # Convert the key to a slice string
-        slice_string, dim_mask = self._make_slice_string(key)
+        nd_slice = su.parse_key(self.shape, key)
 
         if self.data is None:
-            # Dataset is not in memory, so request it from the server
-            data = self.connection.request_slice(self.file_path, self.name, slice_string)
+            # Data is not in memory, so we'll need to request it
+            if hasattr(nd_slice, "to_generator"):
+                # Might need to chunk the request if we indexed the dataset with a large array
+                data = np.ndarray(nd_slice.result_shape(), dtype=self.dtype)
+                offset = 0
+                for n, params in nd_slice.to_generator(self.max_nr_slices):
+                    self.connection.request_slice_into(self.file_path, self.name, params, data[offset:offset+n,...])
+                    offset += n
+            else:
+                # Send a single request for the data
+                data = self.connection.request_slice(self.file_path, self.name, nd_slice.to_list())
             # Remove dimensions where the index was a scalar
-            result_dims = np.asarray(data.shape, dtype=int)[dim_mask]
-            data = data.reshape(result_dims)
+            data = data.reshape(nd_slice.result_shape())
+            # Might need to reorder the output if key included an array
+            if hasattr(nd_slice, "reorder"):
+                data = nd_slice.reorder(data)
             # In case of scalar results, don't wrap in a numpy scalar
             if isinstance(data, np.ndarray):
                 if len(data.shape) == 0:
@@ -164,7 +120,12 @@ class RemoteDataset:
             source_sel = Ellipsis
         if dest_sel is None:
             dest_sel = Ellipsis
-        slice_string, _ = self._make_slice_string(source_sel)
+
+        # Parse the source selection into a tuple of slice objects
+        nd_slice = su.NormalizedSlice(self.shape, source_sel)
+
+        # Get (offset, length) pairs describing the slice to read
+        slice_descriptor = nd_slice.to_list()
 
         # Get a view of the destination selection, making sure we do not make a copy
         dest_view = array[dest_sel]
@@ -175,12 +136,12 @@ class RemoteDataset:
 
         if array.dtype == self.dtype:
             # The data types match, so we can download directly into the destination buffer
-            self.connection.request_slice_into(self.file_path, self.name, slice_string, dest_view)
+            self.connection.request_slice_into(self.file_path, self.name, slice_descriptor, dest_view)
         else:
             # The data types are different, so we have to make a copy and let numpy convert the values
             if not np.can_cast(self.dtype, array.dtype, casting='safe'):
                 raise RuntimeError("Cannot safely cast {self.dtype} to {array.dtype}")
-            dest_view[...] = self.connection.request_slice(self.file_path, self.name, slice_string)
+            dest_view[...] = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
 
     def __len__(self):
         if len(self.shape) >= 1:
@@ -194,13 +155,13 @@ class RemoteDataset:
         """
         pass
 
-    def request_slices(self, keys, dest=None):
+    def request_slices(self, slices, dest=None):
         """
-        Request a series of dataset slices from the server and return a single
-        array with the slices concatenated along the first dimension. Slices
-        may only differ in the first dimension, must be in ascending order of
-        starting index in the first dimension, and must not overlap. Example
-        usage::
+        Request a series of dataset slices from the server and return a
+        single array with the slices concatenated along the first
+        dimension. Slices may only differ in the first dimension, must
+        be in ascending order of starting index in the first dimension,
+        and must not overlap. Slices must have step=1. Example usage::
 
           slices = []
           slices.append(np.s_[0:10,:])
@@ -210,27 +171,30 @@ class RemoteDataset:
         If the optional dest parameter is used the result is written to dest.
         Otherwise a new np.ndarray is returned.
 
-        :param keys: list of slices to read
-        :type keys: list of slices
+        :param keys: list of multidimensional slices to read
+        :type keys: list of tuples of slice objects
         :param dest: destination buffer to write to, defaults to None
         :type dest: np.ndarray, optional
+
         """
-        # Construct the slice specifier string
-        slices = []
-        for key in keys:
-            slice_string, dim_mask = self._make_slice_string(key)
-            slices.append(slice_string)
-        slice_string = ";".join(slices)
+        # Parse the list of slices
+        nd_slices = []
+        for s in slices:
+            nd_slices.append(su.NormalizedSlice(self.shape, s))
+
+        # Make a descriptor to fetch the combined slices in one request
+        multislice = su.MultiSlice(nd_slices)
+        slice_descriptor = multislice.to_list()
+        result_shape = multislice.result_shape()
 
         if dest is None:
             # Make the request and return a new array
-            data = self.connection.request_slice(self.file_path, self.name, slice_string)
+            data = self.connection.request_slice(self.file_path, self.name, slice_descriptor)
             # Remove dimensions where the index was a scalar
-            result_dims = np.asarray(data.shape, dtype=int)[dim_mask]
-            return data.reshape(result_dims)
+            return data.reshape(result_shape)
         else:
             # Download the data into the supplied destination array's buffer
-            self.connection.request_slice_into(self.file_path, self.name, slice_string, dest)
+            self.connection.request_slice_into(self.file_path, self.name, slice_descriptor, dest)
 
     def _copy_self(self, dest, name, shallow=False, expand_soft=False, recursive=True):
         """
