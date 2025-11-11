@@ -7,6 +7,16 @@ from itertools import product
 import hdfstream
 from dummy_dataset import DummyRemoteDataset
 
+def list_to_array(l):
+    """
+    Convert a list of integers or booleans to an array. Need to avoid
+    returning a float array if the list is empty.
+    """
+    if len(l) > 0:
+        return np.asarray(l)
+    else:
+        return np.asarray(l, dtype=int)
+
 #
 # Scalar dataset tests
 #
@@ -56,6 +66,7 @@ keys_1d_slices = [
 ]
 # Some valid lists of indexes into a 1D array
 keys_1d_arrays = [
+    [],
     [0,1,2,3],
     [3,2,1,0],
     [5,6,7,10,40,41,42,90,95,96,97],
@@ -69,8 +80,13 @@ keys_1d_arrays = [
     [-1,-2,-3],
     [4,5,6,-10,-11,-12],
     [5,5,5,5,5,5],
+    [True,]*100,
+    [False,]*100,
+    [True,]*50+[False,]*50,
+    [True,]*20+[False,]*50+[True,]*30,
+    [False, True, True, True,]*25,
 ]
-@pytest.mark.parametrize("key", keys_1d_slices + keys_1d_arrays + [np.asarray(k, dtype=int) for k in keys_1d_arrays])
+@pytest.mark.parametrize("key", keys_1d_slices + keys_1d_arrays + [list_to_array(k) for k in keys_1d_arrays])
 def test_1d_valid(dset_1d, key):
     expected = dset_1d.arr[key]
     actual = dset_1d[key]
@@ -119,6 +135,7 @@ def dset_2d(request):
 
 # The 2D test cases are the 1D test cases with various indexes in the second dimension
 keys_in_second_dim = [
+    np.s_[0:0],
     np.s_[...],
     np.s_[:],
     0,
