@@ -17,6 +17,11 @@ def list_to_array(l):
     else:
         return np.asarray(l, dtype=int)
 
+def assert_arrays_equal(expected, actual):
+    assert expected.dtype == actual.dtype
+    assert expected.shape == actual.shape
+    assert np.all(expected == actual)
+
 #
 # Scalar dataset tests
 #
@@ -90,9 +95,17 @@ keys_1d_arrays = [
 def test_1d_valid(dset_1d, key):
     expected = dset_1d.arr[key]
     actual = dset_1d[key]
-    assert expected.dtype == actual.dtype
-    assert expected.shape == actual.shape
-    assert np.all(expected == actual)
+    assert_arrays_equal(expected, actual)
+
+def test_1d_trailing_ellipsis(dset_1d):
+    expected = dset_1d.arr[:,...]
+    actual   = dset_1d[:,...]
+    assert_arrays_equal(expected, actual)
+
+def test_1d_leading_ellipsis(dset_1d):
+    expected = dset_1d.arr[...,:]
+    actual   = dset_1d[...,:]
+    assert_arrays_equal(expected, actual)
 
 # Some invalid slices
 bad_1d_slices = [
@@ -154,9 +167,7 @@ valid_keys_2d = [k for k in valid_keys_2d if k[0] is not Ellipsis or k[1] is not
 def test_2d_valid(dset_2d, key):
     expected = dset_2d.arr[key]
     actual = dset_2d[key]
-    assert expected.dtype == actual.dtype
-    assert expected.shape == actual.shape
-    assert np.all(expected == actual)
+    assert_arrays_equal(expected, actual)
 
 # Try some 2D cases with invalid slices in the first dimension
 bad_keys_2d_1 = list(product(bad_1d_slices+bad_1d_arrays, keys_in_second_dim))
@@ -182,3 +193,19 @@ def test_2d_bad_slice_second_dim(dset_2d, key):
 def test_2d_two_ellipsis(dset_2d):
     with pytest.raises(ValueError):
         result = dset_2d[...,...]
+
+# Check what happens if we have an extra Ellipsis
+def test_2d_trailing_ellipsis(dset_2d):
+    expected = dset_2d.arr[:,:,...]
+    actual   = dset_2d[:,:,...]
+    assert_arrays_equal(expected, actual)
+
+def test_2d_leading_ellipsis(dset_2d):
+    expected = dset_2d.arr[...,:,:]
+    actual   = dset_2d[...,:,:]
+    assert_arrays_equal(expected, actual)
+
+def test_2d_middle_ellipsis(dset_2d):
+    expected = dset_2d.arr[:,...,:]
+    actual   = dset_2d[:,...,:]
+    assert_arrays_equal(expected, actual)
