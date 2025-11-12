@@ -3,15 +3,6 @@
 import numpy as np
 
 
-# # Encoding an array of ints to a msgpack array
-# from msgpack import Packer
-
-# packer = Packer()
-# packed = b''.join([
-#     packer.pack_array_header(len(arr)),
-#     *map(packer.pack, arr)
-# ])
-
 def is_integer(i):
     return isinstance(i, (int, np.integer))
 
@@ -136,15 +127,7 @@ class NormalizedSlice:
         self.shape = np.asarray(shape, dtype=int)
         self.rank = len(self.shape)
 
-        # Handle the case where the dataset is a scalar. Only an empty tuple
-        # or an Ellipsis is allowed here.
-        if len(shape) == 0:
-            if key is Ellipsis or (isinstance(key, tuple) and len(key) == 0):
-                key = ()
-            else:
-                raise ValueError("Scalars can only be indexed with () or Ellipsis")
-
-        # Ensure the key is wrapped in a tuple and not too long
+        # Ensure the key is wrapped in a tuple
         if not isinstance(key, tuple):
             key = (key,)
 
@@ -293,10 +276,6 @@ class ArrayIndexedSlice:
         """
 
         # Should have converted key to tuple before calling
-        assert isinstance(key, tuple)
-
-        if len(key) > len(shape):
-            raise ValueError("Too many indexes")
         if not isinstance(key, tuple) or len(key) < 1:
             raise ValueError("Index should be a tuple with at least one element")
 

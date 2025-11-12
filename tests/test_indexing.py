@@ -99,15 +99,14 @@ def test_1d_valid(dset_1d, key):
 
 # Check what happens if we have too many dimensions due to Ellipsis.
 # Need to check simple slice and array cases.
-
-keys = [np.s_[:], [0,1,2,3], 0]
+keys = [0, np.s_[:], [0,1,2,3]]
 @pytest.mark.parametrize("key", keys)
 def test_1d_trailing_ellipsis(dset_1d, key):
     expected = dset_1d.arr[key,...]
     actual   = dset_1d[key,...]
     assert_arrays_equal(expected, actual)
 
-@pytest.mark.parametrize("key", keys)    
+@pytest.mark.parametrize("key", keys[:2])
 def test_1d_leading_ellipsis(dset_1d, key):
     expected = dset_1d.arr[...,key]
     actual   = dset_1d[...,key]
@@ -214,7 +213,7 @@ def test_2d_two_ellipsis(dset_2d):
 
 # Check what happens if we have an extra Ellipsis. Need to include cases
 # with and without an array as the first index.
-keys = [np.s_[:], [0,1,2,3], 0]
+keys = [0, np.s_[:], [0,1,2,3]]
 @pytest.mark.parametrize("key", keys)
 def test_2d_trailing_ellipsis(dset_2d, key):
     expected = dset_2d.arr[key,:,...]
@@ -222,9 +221,10 @@ def test_2d_trailing_ellipsis(dset_2d, key):
     assert_arrays_equal(expected, actual)
 
 # Ellipsis is first here, so we can't use an array
-def test_2d_leading_ellipsis(dset_2d):
-    expected = dset_2d.arr[...,:,:]
-    actual   = dset_2d[...,:,:]
+@pytest.mark.parametrize("key", keys[:2])
+def test_2d_leading_ellipsis(dset_2d, key):
+    expected = dset_2d.arr[...,key,:]
+    actual   = dset_2d[...,key,:]
     assert_arrays_equal(expected, actual)
 
 @pytest.mark.parametrize("key", keys)
