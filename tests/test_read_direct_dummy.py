@@ -48,6 +48,13 @@ def test_direct_1d_slice(dset_1d):
     dset_1d.read_direct(result, key)
     assert np.all(result == dset_1d.arr[key])
 
+def test_direct_1d_slice_with_dest_sel(dset_1d):
+    key = np.s_[20:30]
+    result = np.ndarray(50, dtype=dset_1d.dtype)
+    sel = np.s_[15:25]
+    dset_1d.read_direct(result, key, sel)
+    assert np.all(result[sel] == dset_1d.arr[key])
+
 def test_direct_1d_slice_no_tuple(dset_1d):
     key = slice(20,30)
     result = np.ndarray(10, dtype=dset_1d.dtype)
