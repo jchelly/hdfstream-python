@@ -130,7 +130,8 @@ class NormalizedSlice:
         # Expand out any Ellipsis by replacing with zero or more slice(None)
         nr_ellipsis = sum(item is Ellipsis for item in key)
         nr_missing = len(shape) - len(key)
-        assert nr_missing >= -1 # -1 indicates we just need to remove the Ellipsis
+        if(nr_missing < -1):
+            raise IndexError("Too many indexes for array")
         if nr_ellipsis > 1:
             raise IndexError("Index tuples may only contain one Ellipsis")
         elif nr_ellipsis == 1:
