@@ -127,6 +127,10 @@ class NormalizedSlice:
         self.shape = np.asarray(shape, dtype=int)
         self.rank = len(self.shape)
 
+        # Wrap the key in a tuple if it isn't already
+        if not isinstance(key, tuple):
+            key = (key,)
+
         # Expand out any Ellipsis by replacing with zero or more slice(None)
         nr_ellipsis = sum(item is Ellipsis for item in key)
         nr_missing = len(shape) - len(key)
