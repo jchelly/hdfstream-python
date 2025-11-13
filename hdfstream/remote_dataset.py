@@ -14,8 +14,8 @@ class RemoteDataset:
     metadata and should not usually be called directly.
 
     Indexing a RemoteDataset with numpy style slicing yields a numpy array
-    with the dataset contents. Slices must be contiguous ranges. Indexing
-    with an array is not supported.
+    with the dataset contents. Indexing with an integer or boolean array is
+    supported, but only in the first dimension.
 
     :param connection: connection object which stores http session information
     :type connection: hdfstream.connection.Connection

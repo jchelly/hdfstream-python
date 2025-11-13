@@ -3,15 +3,6 @@
 import numpy as np
 
 
-# # Encoding an array of ints to a msgpack array
-# from msgpack import Packer
-
-# packer = Packer()
-# packed = b''.join([
-#     packer.pack_array_header(len(arr)),
-#     *map(packer.pack, arr)
-# ])
-
 def is_integer(i):
     return isinstance(i, (int, np.integer))
 
@@ -29,18 +20,18 @@ def convert_list_to_array(index, size):
         # Check that all elements are booleans
         for ind in index:
             if not isinstance(ind, bool):
-                raise ValueError("Indexes in a list must all be the same type")
+                raise IndexError("Indexes in a list must all be the same type")
         # Return the array
         return np.asarray(index, dtype=bool)
     elif is_integer(index[0]):
         # Check that all elements are integers
         for ind in index:
             if not is_integer(ind):
-                raise ValueError("Indexes in a list must all be the same type")
+                raise IndexError("Indexes in a list must all be the same type")
         # Return the array
         return np.asarray(index, dtype=int)
     else:
-        raise ValueError("Lists of indexes must contain booleans or integers")
+        raise IndexError("Lists of indexes must contain booleans or integers")
 
 
 def ensure_integer_index_array(index, size):
@@ -48,15 +39,15 @@ def ensure_integer_index_array(index, size):
     Convert the input array of indexes from boolean to integer, if necessary
     """
     if len(index.shape) > 1:
-        raise ValueError("Arrays used as indexes must not be multidimensional")
+        raise IndexError("Arrays used as indexes must not be multidimensional")
     if np.issubdtype(index.dtype, np.integer):
         return index # Already an array of integers
     elif np.issubdtype(index.dtype, np.bool_):
         if index.shape[0] != size:
-            raise ValueError("Boolean index array is the wrong size!")
+            raise IndexError("Boolean index array is the wrong size!")
         return np.arange(size, dtype=int)[index] # convert bools to integers
     else:
-        raise ValueError("Index arrays must be of integer or boolean type")
+        raise IndexError("Index arrays must be of integer or boolean type")
 
 
 def merge_slices(starts, counts):
@@ -136,31 +127,20 @@ class NormalizedSlice:
         self.shape = np.asarray(shape, dtype=int)
         self.rank = len(self.shape)
 
-        # Handle the case where the dataset is a scalar. Only an empty tuple
-        # or an Ellipsis is allowed here.
-        if len(shape) == 0:
-            if key is Ellipsis or (isinstance(key, tuple) and len(key) == 0):
-                key = ()
-            else:
-                raise ValueError("Scalars can only be indexed with () or Ellipsis")
-
-        # Ensure the key is wrapped in a tuple and not too long
-        if not isinstance(key, tuple):
-            key = (key,)
-
         # Expand out any Ellipsis by replacing with zero or more slice(None)
         nr_ellipsis = sum(item is Ellipsis for item in key)
         nr_missing = len(shape) - len(key)
-        assert nr_missing >= -1 # -1 indicates we just need to remove the Ellipsis
+        if(nr_missing < -1):
+            raise IndexError("Too many indexes for array")
         if nr_ellipsis > 1:
-            raise ValueError("Index tuples may only contain one Ellipsis")
+            raise IndexError("Index tuples may only contain one Ellipsis")
         elif nr_ellipsis == 1:
             i = key.index(Ellipsis)
             key = key[:i]+(slice(None),)*(nr_missing+1)+key[i+1:]
 
         # Should not have too many dimensions at this point
         if len(key) > len(shape):
-            raise ValueError("Too many indexes!")
+            raise IndexError("Too many indexes for array")
 
         # If we still don't have one entry per dimension, append some slice(None)
         nr_missing = len(shape) - len(key)
@@ -185,7 +165,7 @@ class NormalizedSlice:
                 self.keys.append(slice(j, j+1, 1))
                 self.mask[i] = False
             else:
-                raise ValueError("Simple slice indexes must be integer, slice, or Ellipsis")
+                raise IndexError("Simple slice indexes must be integer, slice, or Ellipsis")
 
         # Check that any slices have a step size of 1
         for key in self.keys:
@@ -293,12 +273,12 @@ class ArrayIndexedSlice:
         """
 
         # Should have converted key to tuple before calling
-        assert isinstance(key, tuple)
-
-        if len(key) > len(shape):
-            raise ValueError("Too many indexes")
         if not isinstance(key, tuple) or len(key) < 1:
-            raise ValueError("Index should be a tuple with at least one element")
+            raise IndexError("Index should be a tuple with at least one element")
+
+        # The dataset needs at least one dimension for fancy indexing
+        if len(shape) == 0:
+            raise IndexError("Too many indices for array")
 
         # If the first element is a list, convert it to an array
         index = key[0]
@@ -306,7 +286,7 @@ class ArrayIndexedSlice:
             index = convert_list_to_array(key[0], shape[0])
         assert isinstance(index, np.ndarray)
         if len(index.shape) != 1:
-            raise ValueError("Index arrays must be one dimensional")
+            raise IndexError("Index arrays must be one dimensional")
 
         # If we now have a boolean mask array, convert to integer indexes
         index = ensure_integer_index_array(index, shape[0])
@@ -384,10 +364,11 @@ def parse_key(shape, key):
     """
     Interpret key as a NormalizedSlice or ArrayIndexedSlice
     """
-    if isinstance(key, (np.ndarray, list)):
-        # Index is a single list or array, so wrap it in a tuple
-        return ArrayIndexedSlice(shape, (key,))
-    if isinstance(key, tuple) and len(key) > 0 and isinstance(key[0], (np.ndarray, list)):
+    # Wrap the key in a tuple if it isn't already
+    if not isinstance(key, tuple):
+        key = (key,)
+
+    if len(key) > 0 and isinstance(key[0], (np.ndarray, list)):
         # Index is a tuple with a list or array as the first element
         return ArrayIndexedSlice(shape, key)
     else:
