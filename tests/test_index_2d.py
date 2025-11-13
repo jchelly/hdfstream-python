@@ -109,6 +109,7 @@ bad_keys_2d_1 = [
     4, # out of bounds
     -4,
     [0,3], # not a simple slice
+    [True, True, True],
     np.s_[0:3:2], # step is not 1
 ]
 
