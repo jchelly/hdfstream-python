@@ -103,6 +103,9 @@ class RemoteDirectory(collections.abc.Mapping):
         """
         Decode the msgpack representation of this directory
         """
+        # Store directory size
+        self._size = int(data["size"])
+
         # Store dict of files in this directory
         for filename, filedata in data["files"].items():
             file_path = self.name + "/" + filename
@@ -217,6 +220,16 @@ class RemoteDirectory(collections.abc.Mapping):
         """
         self._load()
         return self._directories
+
+    @property
+    def size(self):
+        """
+        Return the size of this directory's contents in bytes
+
+        :rtype: int
+        """
+        self._load()
+        return self._size
 
     def _ipython_key_completions_(self):
         self._load()
