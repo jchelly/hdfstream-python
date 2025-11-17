@@ -231,6 +231,15 @@ class RemoteDirectory(collections.abc.Mapping):
         self._load()
         return self._size
 
+    @property
+    def filename(self):
+        """
+        Return the full path to this remote directory
+
+        :rtype: str
+        """
+        return self.name
+
     def _ipython_key_completions_(self):
         self._load()
         return list(self._directories.keys()) + list(self._files.keys())
