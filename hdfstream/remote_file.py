@@ -198,3 +198,12 @@ class RemoteFile(collections.abc.Mapping):
         :type expand_soft: bool
         """
         self.root.copy(source, dest, name, shallow, expand_soft)
+
+    @property
+    def filename(self):
+        """
+        Return the full path to this remote file
+
+        :rtype: str
+        """
+        return self.file_path
