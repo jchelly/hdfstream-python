@@ -76,14 +76,10 @@ def decode_hook(data):
     if isinstance(data, dict) and "vlen" in data:
         # Get the shape of the array
         shape = [int(i) for i in data["shape"]]
-        if len(shape) == 0:
-            # For scalars, just return the value
-            data = data["data"][0]
-        else:
-            # Otherwise we make an object array
-            arr = np.empty(len(data["data"]), object)
-            arr[:] = data["data"]
-            data = arr.reshape(shape)
+        # Return an object array
+        arr = np.empty(len(data["data"]), object)
+        arr[:] = data["data"]
+        data = arr.reshape(shape)
     return data
 
 
