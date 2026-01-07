@@ -175,7 +175,7 @@ class RemoteDataset:
         :type keys: list of tuples of slice objects
         :param dest: destination buffer to write to, defaults to None
         :type dest: np.ndarray, optional
-
+        :rtype: np.ndarray or None
         """
         # Parse the list of slices
         nd_slices = []

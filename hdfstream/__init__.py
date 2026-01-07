@@ -3,7 +3,7 @@
 __all__ = ["open", "RemoteDirectory", "RemoteFile", "RemoteGroup",
            "RemoteDataset", "SoftLink", "HardLink", "disable_progress",
            "set_progress_delay", "Config", "get_config", "set_config",
-           "verify_cert", "testing"]
+           "verify_cert", "testing", "util"]
 
 
 from importlib.metadata import version, PackageNotFoundError
