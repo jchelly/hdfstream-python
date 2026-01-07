@@ -10,3 +10,8 @@ API Documentation
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. automodule:: hdfstream.util
+   :members:
+   :undoc-members:
+   :show-inheritance:
