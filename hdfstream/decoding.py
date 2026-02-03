@@ -219,6 +219,8 @@ def decode_ndarray(stream, desc, progress, destination=None):
         while bytes_left > 0:
             max_to_read = min(bytes_left, chunk)
             n = stream.readinto(buf[offset:offset+max_to_read])
+            if n == 0:
+                raise RuntimeError("Array body in response is truncated!")
             bytes_left -= n
             offset += n
             progress.update(n)
