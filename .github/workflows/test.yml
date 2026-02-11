@@ -19,6 +19,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Fetch base branch
+      run: |
+        git fetch origin ${{ github.base_ref }} --depth=1
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
@@ -41,7 +46,7 @@ jobs:
         coverage run -m pytest --no-verify-cert
         coverage xml
         coverage html
-        git diff master...HEAD > changes.diff
+        git diff origin/${{ github.base_ref }}...HEAD > changes.diff
         diff-cover coverage.xml --diff-file changes.diff --fail-under=100
     - name: Upload coverage report
       if: always()
