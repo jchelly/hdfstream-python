@@ -40,5 +40,12 @@ jobs:
         pip install coverage diff-cover
         coverage run -m pytest --no-verify-cert
         coverage xml
+        coverage html
         git diff master...HEAD > changes.diff
         diff-cover coverage.xml --diff-file changes.diff --fail-under=100
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-html
+        path: htmlcov/
