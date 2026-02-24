@@ -3,7 +3,7 @@
 # version of hdfstream.
 #
 
-name: Integration test for lightcone_io
+name: Integration test for swiftsimio
 
 on:
   workflow_dispatch:
@@ -29,26 +29,31 @@ jobs:
       run: |
         pip install .
 
-    - name: Clone lightcone_io module with test data
+    - name: Clone swiftsimio module
       uses: actions/checkout@v4
       with:
-        repository: jchelly/LightconeIO
-        path: downstream/lightcone_io
+        repository: SWIFTSIM/swiftsimio
+        path: downstream/swiftsimio
         ref: master
 
-    - name: Install lightcone_io module
+    - name: Install swiftsimio module
       run: |
-        pip install ./downstream/lightcone_io
+        pip install "./downstream/swiftsimio[dev]"
 
-    - name: Start hdfstream service with lightcone_io test data mounted
+    - name: Preload swiftsimio test data files
+      working-directory: ./downstream/swiftsimio
+      run: |
+        python -c "from tests.conftest import preload_test_data; preload_test_data()"
+
+    - name: Start hdfstream service with swiftsimio test data mounted
       uses: ./.github/actions/start-hdfstream
       with:
-        data-dir: ./downstream/lightcone_io/tests/data
-        virtual-prefix: tests/data
+        data-dir: ./downstream/swiftsimio/test_data
+        virtual-prefix: test_data
         image: ghcr.io/jchelly/hdfstream-api:0.0.6
 
-    - name: Test lightcone_io with pytest
-      working-directory: ./downstream/lightcone_io
+    - name: Test swiftsimio with pytest
+      working-directory: ./downstream/swiftsimio
       run: |
         pytest --hdfstream-server=http://localhost:8080/hdfstream
 
