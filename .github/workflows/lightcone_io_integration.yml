@@ -32,7 +32,7 @@ jobs:
     - name: Clone lightcone_io module with test data
       uses: actions/checkout@v4
       with:
-        repository: jchelly/lightcone_io
+        repository: jchelly/LightconeIO
         path: downstream/lightcone_io
         ref: master
 
