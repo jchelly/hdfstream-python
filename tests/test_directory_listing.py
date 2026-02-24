@@ -38,3 +38,28 @@ def test_eagle_file_listing(server_url):
         f = snap_dir[filename]
         assert isinstance(f, hdfstream.RemoteFile)
         assert f.is_hdf5()
+
+@pytest.mark.vcr
+def test_implicit_directory(server_url):
+    """
+    Test the case where we infer the existence of a directory
+    and delay loading the full listing.
+    """
+    # Open a directory
+    import hdfstream
+    root_dir = hdfstream.open(server_url, "/")
+    snap_dir = root_dir["EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000"]
+
+    # Directories on the path should not have been requested from the server yet
+    for dirname in ("EAGLE","EAGLE/Fiducial_models","EAGLE/Fiducial_models/RefL0012N0188"):
+        assert root_dir[dirname].unpacked == False
+
+    # Listing an intermediate directory should trigger a request for the full listing
+    for dirname in ("EAGLE","EAGLE/Fiducial_models"):
+        listing = list(root_dir[dirname])
+        assert root_dir["EAGLE"].unpacked
+
+    # Check lazy loading didn't prevent us opening the file or directories
+    for dirname in ("EAGLE","EAGLE/Fiducial_models","EAGLE/Fiducial_models/RefL0012N0188",
+                    "EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000"):
+        subdir = root_dir[dirname]
