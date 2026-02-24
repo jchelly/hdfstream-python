@@ -126,7 +126,10 @@ class RemoteDirectory(collections.abc.Mapping):
                 if not(subdir_object.unpacked):
                     # Directory exists but it's contents have not have been
                     # requested from the server until now.
-                    subdir_object._unpack(subdir_data)
+                    if subdir_data is None:
+                        subdir_object._load()
+                    else:
+                        subdir_object._unpack(subdir_data)
         self.unpacked = True
 
     def __getitem__(self, key):
