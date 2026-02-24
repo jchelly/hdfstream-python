@@ -34,6 +34,7 @@ jobs:
       with:
         repository: jchelly/lightcone_io
         path: downstream/lightcone_io
+        ref: master
 
     - name: Install lightcone_io module
       run: |
