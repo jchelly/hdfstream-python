@@ -1,0 +1,56 @@
+#
+# Check that the lightcone_io test suite still works with this
+# version of hdfstream.
+#
+
+name: Integration test for lightcone_io
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out hdfstream module
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+
+    - name: Install hdfstream module
+      run: |
+        pip install .
+
+    - name: Clone lightcone_io module with test data
+      uses: actions/checkout@v4
+      with:
+        repository: jchelly/lightcone_io
+        path: downstream/lightcone_io
+
+    - name: Install lightcone_io module
+      run: |
+        pip install ./downstream/lightcone_io
+
+    - name: Start hdfstream service with lightcone_io test data mounted
+      uses: ./.github/actions/start-hdfstream
+      with:
+        data-dir: ./downstream/lightcone_io/tests/data
+        virtual-prefix: tests/data
+        image: ghcr.io/jchelly/hdfstream-api:0.0.6
+
+    - name: Test lightcone_io with pytest
+      working-directory: ./downstream/lightcone_io
+      run: |
+        pytest --hdfstream-server=http://localhost:8080/hdfstream
+
+    - name: Stop hdfstream service
+      uses: ./.github/actions/stop-hdfstream
+      if: always()
