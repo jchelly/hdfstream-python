@@ -9,7 +9,7 @@ from tqdm import tqdm
 from hdfstream.streaming_decoder import StreamingDecoder
 
 # Chunk size in bytes for reading http responses
-chunk_size = 1024*1024
+chunk_size = 4*1024*1024
 
 # Big endian int types used to interpret msgpack data
 be_uint8  = np.dtype(">u1")
@@ -211,13 +211,12 @@ def decode_ndarray(stream, desc, progress, destination=None):
 
     # Read the bin objects into the array's buffer
     offset = 0
-    chunk = 1024*1024
     for bin_nr in range(nr_bins):
         # Get number of bytes in this binary object
         bytes_left = stream.read_bin_header()
         # Read the bytes into the array's buffer in chunks
         while bytes_left > 0:
-            max_to_read = min(bytes_left, chunk)
+            max_to_read = min(bytes_left, chunk_size)
             n = stream.readinto(buf[offset:offset+max_to_read])
             if n == 0:
                 raise RuntimeError("Array body in response is truncated!")
