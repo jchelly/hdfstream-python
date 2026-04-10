@@ -107,11 +107,17 @@ class RemoteDirectory(collections.abc.Mapping):
         self._size = int(data["size"])
 
         # Store dict of files in this directory
-        for filename, filedata in data["files"].items():
+        for filename, file_data in data["files"].items():
             file_path = self.name + "/" + filename
             if filename not in self._files:
                 self._files[filename] = RemoteFile(self.connection, file_path, max_depth=self.max_depth,
-                                                   data_size_limit=self.data_size_limit, data=filedata)
+                                                   data_size_limit=self.data_size_limit, data=file_data)
+            else:
+                # File already exists
+                file_object = self._files[filename]
+                # If we didn't request the file yet but we have the data from a recursive request, unpack it
+                if not file_object.unpacked and file_data is not None:
+                    file_object._unpack(file_data)
 
         # Store dict of subdirectories in this directory
         for subdir_name, subdir_data in data["directories"].items():
@@ -125,7 +131,7 @@ class RemoteDirectory(collections.abc.Mapping):
                 # Subdirectory already exists
                 subdir_object = self._directories[subdir_name]
                 # If we didn't request the subdirectory yet but we have the data from a recursive request, unpack it
-                if not(subdir_object.unpacked) and subdir_data is not None:
+                if not subdir_object.unpacked and subdir_data is not None:
                     subdir_object._unpack(subdir_data)
         self.unpacked = True
 
@@ -194,11 +200,13 @@ class RemoteDirectory(collections.abc.Mapping):
                                            data=data)
         return self._files[name]
 
-    def _ensure_path_exists(self, key, object_type, data=None):
+    def _ensure_path_exists(self, key, data):
         """
         If a request for the specified path succeeded, we can infer the existence
         of all directories on that path, as well as the target file or directory.
         """
+        assert data is not None
+
         # Ensure path is a string, and not a pathlib.Path, for example
         key = str(key)
 
@@ -207,14 +215,14 @@ class RemoteDirectory(collections.abc.Mapping):
 
         if prefix is None:
             # Handle the case where the path is in this directory
-            if object_type is RemoteDirectory:
+            if "directories" in data:
                 return self._ensure_subdir(name, data)
-            elif object_type is RemoteFile:
+            else:
                 return self._ensure_file(name, data)
         else:
             # Handle the case where the path is in a subdirectory
             subdir = self._ensure_subdir(prefix)
-            return subdir._ensure_path_exists(name, object_type, data)
+            return subdir._ensure_path_exists(name, data)
 
     def __getitem__(self, key):
 
@@ -233,10 +241,7 @@ class RemoteDirectory(collections.abc.Mapping):
             raise KeyError(f"Invalid path: {key}")
 
         # If that worked, we can create the new object
-        if "directories" in data:
-            return self._ensure_path_exists(key, RemoteDirectory, data)
-        else:
-            return self._ensure_path_exists(key, RemoteFile, data)
+        return self._ensure_path_exists(key, data)
 
     def __len__(self):
         self._load()
