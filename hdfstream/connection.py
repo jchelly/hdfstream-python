@@ -57,8 +57,7 @@ def raise_for_status(response):
             raise HDFStreamRequestError("Not authorized. Incorrect username or password?")
         try:
             # Enable content decoding if necessary
-            if response.headers.get("Content-Encoding"):
-                response.raw.decode_content = True
+            response.raw.decode_content = ("Content-Encoding" in response.headers)
             # Extract msgpack encoded error string from response.
             data = msgpack.unpack(response.raw)
             message = data["error"]
@@ -227,8 +226,7 @@ class Connection:
         with _maybe_suppress_cert_warnings():
             response = self.session.get(url, stream=True, verify=_verify_cert)
         raise_for_status(response)
-        if response.headers.get("Content-Encoding"):
-            response.raw.decode_content = True
+        response.raw.decode_content = ("Content-Encoding" in response.headers)
         if mode == 'rb':
             # Binary mode
             return response.raw
