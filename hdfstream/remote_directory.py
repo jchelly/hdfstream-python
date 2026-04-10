@@ -1,5 +1,6 @@
 #!/bin/env python
 
+import posixpath
 import collections.abc
 
 from hdfstream.connection import Connection
@@ -20,7 +21,7 @@ def _split_path(path):
     Leading and trailing slashes are ignored and consecutive slashes are
     treated as one.
     """
-    components = _path_components(path)
+    components = _path_components(posixpath.normpath(path))
     if len(components) > 1:
         prefix = components[0]
         remainder = "/".join(components[1:])
