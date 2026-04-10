@@ -84,6 +84,16 @@ def test_non_existent_subdir_in_directory_already_loaded(server_url):
         sub_dir = eagle_dir["invalid1/invalid2"]
 
 @pytest.mark.vcr
+def test_non_existent_subdir_in_directory_not_already_loaded(server_url):
+
+    import hdfstream
+    root_dir = hdfstream.open(server_url, "/")
+    eagle_dir = root_dir["EAGLE"]
+    with pytest.raises(KeyError):
+        # we need to make a request to discover that this doesn't exist
+        sub_dir = eagle_dir["invalid1/invalid2"]
+
+@pytest.mark.vcr
 def test_eagle_file_listing(server_url):
 
     import hdfstream
