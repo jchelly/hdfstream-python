@@ -151,3 +151,12 @@ def test_implicit_directory(server_url):
     for dirname in ("EAGLE","EAGLE/Fiducial_models","EAGLE/Fiducial_models/RefL0012N0188",
                     "EAGLE/Fiducial_models/RefL0012N0188/snapshot_028_z000p000"):
         subdir = root_dir[dirname]
+
+@pytest.mark.vcr
+def test_read_file(server_url):
+
+    import hdfstream
+    root_dir = hdfstream.open(server_url, "/")
+    data = root_dir["Tests/SWIFT/IOExamples/ssio_ci_04_2025/README"].open(mode='r').read()
+    assert data.startswith("This is a set of")
+    assert data.endswith("handle this case.")
