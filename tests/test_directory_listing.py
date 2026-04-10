@@ -68,6 +68,24 @@ def test_eagle_file_listing(server_url):
         assert f.is_hdf5()
 
 @pytest.mark.vcr
+def test_request_dir_with_file_already_loaded(server_url):
+
+    import hdfstream
+    eagle_dir = hdfstream.open(server_url, "/EAGLE")
+    snap_file = eagle_dir["Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"]
+    snap_dir  = eagle_dir["Fiducial_models/RefL0012N0188/snapshot_000_z020p000"]
+    assert snap_dir["snap_000_z020p000.0.hdf5"] is snap_file
+
+@pytest.mark.vcr
+def test_request_dir_with_dir_already_loaded(server_url):
+
+    import hdfstream
+    eagle_dir = hdfstream.open(server_url, "/EAGLE")
+    snap_dir  = eagle_dir["Fiducial_models/RefL0012N0188/snapshot_000_z020p000"]
+    sim_dir   = eagle_dir["Fiducial_models/RefL0012N0188"]
+    assert sim_dir["snapshot_000_z020p000"] is snap_dir
+
+@pytest.mark.vcr
 def test_implicit_directory(server_url):
     """
     Test the case where we infer the existence of a directory

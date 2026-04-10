@@ -116,9 +116,10 @@ class RemoteDirectory(collections.abc.Mapping):
             else:
                 # File already exists
                 file_object = self._files[filename]
+                # Since path requests are not recursive, this is never used.
                 # If we didn't request the file yet but we have the data from a recursive request, unpack it
-                if not file_object.unpacked and file_data is not None:
-                    file_object._unpack(file_data)
+                #if not file_object.unpacked and file_data is not None:
+                #    file_object._unpack(file_data)
 
         # Store dict of subdirectories in this directory
         for subdir_name, subdir_data in data["directories"].items():
@@ -131,9 +132,10 @@ class RemoteDirectory(collections.abc.Mapping):
             else:
                 # Subdirectory already exists
                 subdir_object = self._directories[subdir_name]
+                # Since path requests are not recursive, this is never used.
                 # If we didn't request the subdirectory yet but we have the data from a recursive request, unpack it
-                if not subdir_object.unpacked and subdir_data is not None:
-                    subdir_object._unpack(subdir_data)
+                #if not subdir_object.unpacked and subdir_data is not None:
+                #    subdir_object._unpack(subdir_data)
         self.unpacked = True
 
     def _lookup_path(self, key):
