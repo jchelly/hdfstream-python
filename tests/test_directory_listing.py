@@ -74,6 +74,7 @@ def test_request_dir_with_file_already_loaded(server_url):
     eagle_dir = hdfstream.open(server_url, "/EAGLE")
     snap_file = eagle_dir["Fiducial_models/RefL0012N0188/snapshot_000_z020p000/snap_000_z020p000.0.hdf5"]
     snap_dir  = eagle_dir["Fiducial_models/RefL0012N0188/snapshot_000_z020p000"]
+    snap_dir_list = list(snap_dir) # forces request and unpacking of directory listing
     assert snap_dir["snap_000_z020p000.0.hdf5"] is snap_file
 
 @pytest.mark.vcr
@@ -83,6 +84,7 @@ def test_request_dir_with_dir_already_loaded(server_url):
     eagle_dir = hdfstream.open(server_url, "/EAGLE")
     snap_dir  = eagle_dir["Fiducial_models/RefL0012N0188/snapshot_000_z020p000"]
     sim_dir   = eagle_dir["Fiducial_models/RefL0012N0188"]
+    sim_dir_list = list(sim_dir) # forces request and unpacking of directory listing
     assert sim_dir["snapshot_000_z020p000"] is snap_dir
 
 @pytest.mark.vcr
