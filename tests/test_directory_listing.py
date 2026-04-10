@@ -23,6 +23,25 @@ def test_eagle_dir_listing_with_subdirs(server_url):
     assert len(fm_dir.files) == 0
 
 @pytest.mark.vcr
+def test_eagle_subdir(server_url):
+
+    import hdfstream
+    eagle_dir = hdfstream.open(server_url, "/EAGLE")
+    fm_dir = eagle_dir["Fiducial_models"]
+    sim_dir = fm_dir["RefL0012N0188"]
+    assert sim_dir is eagle_dir["Fiducial_models/RefL0012N0188"]
+
+@pytest.mark.vcr
+def test_eagle_subdir_loaded(server_url):
+
+    import hdfstream
+    eagle_dir = hdfstream.open(server_url, "/EAGLE")
+    fm_dir = eagle_dir["Fiducial_models"]
+    fm_dir_list = list(fm_dir) # forces request of the directory listing
+    sim_dir = fm_dir["RefL0012N0188"]
+    assert sim_dir is eagle_dir["Fiducial_models/RefL0012N0188"]
+
+@pytest.mark.vcr
 def test_eagle_dir_listing_with_files(server_url):
 
     import hdfstream
@@ -52,6 +71,17 @@ def test_non_existent_directory_already_loaded(server_url):
     subdirs = list(eagle_dir.directories) # ensure listing has been loaded
     with pytest.raises(KeyError):
         sub_dir = eagle_dir["invalid"]
+
+@pytest.mark.vcr
+def test_non_existent_subdir_in_directory_already_loaded(server_url):
+
+    import hdfstream
+    root_dir = hdfstream.open(server_url, "/")
+    eagle_dir = root_dir["EAGLE"]
+    subdirs = list(eagle_dir.directories) # ensure listing has been loaded
+    with pytest.raises(KeyError):
+        # should already know that invalid1 is not a subdir of /EAGLE
+        sub_dir = eagle_dir["invalid1/invalid2"]
 
 @pytest.mark.vcr
 def test_eagle_file_listing(server_url):
