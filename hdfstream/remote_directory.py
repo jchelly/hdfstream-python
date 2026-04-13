@@ -1,5 +1,6 @@
 #!/bin/env python
 
+import posixpath
 import collections.abc
 
 from hdfstream.connection import Connection
@@ -20,7 +21,7 @@ def _split_path(path):
     Leading and trailing slashes are ignored and consecutive slashes are
     treated as one.
     """
-    components = _path_components(path)
+    components = _path_components(posixpath.normpath(path))
     if len(components) > 1:
         prefix = components[0]
         remainder = "/".join(components[1:])
@@ -107,11 +108,18 @@ class RemoteDirectory(collections.abc.Mapping):
         self._size = int(data["size"])
 
         # Store dict of files in this directory
-        for filename, filedata in data["files"].items():
+        for filename, file_data in data["files"].items():
             file_path = self.name + "/" + filename
             if filename not in self._files:
                 self._files[filename] = RemoteFile(self.connection, file_path, max_depth=self.max_depth,
-                                                   data_size_limit=self.data_size_limit, data=filedata)
+                                                   data_size_limit=self.data_size_limit, data=file_data)
+            else:
+                # File already exists
+                file_object = self._files[filename]
+                # Since path requests are not recursive, this is never used.
+                # If we didn't request the file yet but we have the data from a recursive request, unpack it
+                #if not file_object.unpacked and file_data is not None:
+                #    file_object._unpack(file_data)
 
         # Store dict of subdirectories in this directory
         for subdir_name, subdir_data in data["directories"].items():
@@ -122,15 +130,85 @@ class RemoteDirectory(collections.abc.Mapping):
                                                 data_size_limit=self.data_size_limit)
                 self._directories[subdir_name] = subdir_object
             else:
+                # Subdirectory already exists
                 subdir_object = self._directories[subdir_name]
-                if not(subdir_object.unpacked):
-                    # Directory exists but it's contents have not have been
-                    # requested from the server until now.
-                    assert subdir_data is None # assume we don't use recursive directory requests (i.e. max_depth=0 always)
-                    subdir_object._load()
+                # Since path requests are not recursive, this is never used.
+                # If we didn't request the subdirectory yet but we have the data from a recursive request, unpack it
+                #if not subdir_object.unpacked and subdir_data is not None:
+                #    subdir_object._unpack(subdir_data)
         self.unpacked = True
 
-    def __getitem__(self, key):
+    def _lookup_path(self, key):
+        """
+        Attempt to look up the specified path, without triggering any requests.
+
+        :param key: The path to look up.
+        :type key: str
+
+        If we can determine that the path exists, returns a RemoteDirectory or RemoteFile.
+        If we can determine that the path does not exist, raises KeyError.
+        If we need to make a request to determine if the path exists, returns None.
+        """
+        # Ensure path is a string, and not a pathlib.Path, for example
+        key = str(key)
+
+        # Split into prefix before first slash and remainder of path
+        prefix, name = _split_path(key)
+
+        if prefix is None:
+            # Handle the case where the path is in this directory
+            if name in self._directories:
+                return self._directories[name]
+            if name in self._files:
+                return self._files[name]
+            if self.unpacked:
+                # We have the full directory listing and we can't find the path
+                raise KeyError(f"Invalid path: {key}")
+            else:
+                # The path is in a directory we haven't requested yet, so it might exist
+                return None
+        else:
+            # Handle the case where the path is in a subdirectory
+            if prefix in self._directories:
+                # It's in a subdirectory which we know exists
+                return self._directories[prefix]._lookup_path(name)
+            elif self.unpacked:
+                # It's in a subdirectory which we know does not exist
+                raise KeyError(f"Invalid path: {key}")
+            else:
+                # We don't know if the subdirectory exists
+                return None
+
+    def _ensure_subdir(self, name, data=None):
+        """
+        Create a new directory object, if necessary
+        """
+        if name not in self._directories:
+            assert not self.unpacked
+            self._directories[name] = RemoteDirectory(self.connection.server, self.name+"/"+name,
+                                                      lazy_load=True, connection=self.connection,
+                                                      data=data, max_depth=self.max_depth,
+                                                      data_size_limit=self.data_size_limit)
+        return self._directories[name]
+
+    def _ensure_file(self, name, data=None):
+        """
+        Create an new file object, if necessary
+        """
+        if name not in self._files:
+            assert not self.unpacked
+            self._files[name] = RemoteFile(self.connection, self.name+"/"+name,
+                                           max_depth=self.max_depth,
+                                           data_size_limit=self.data_size_limit,
+                                           data=data)
+        return self._files[name]
+
+    def _ensure_path_exists(self, key, data):
+        """
+        If a request for the specified path succeeded, we can infer the existence
+        of all directories on that path, as well as the target file or directory.
+        """
+        assert data is not None
 
         # Ensure path is a string, and not a pathlib.Path, for example
         key = str(key)
@@ -138,52 +216,35 @@ class RemoteDirectory(collections.abc.Mapping):
         # Split into prefix before first slash and remainder of path
         prefix, name = _split_path(key)
 
-        # Check for the case where key refers to something in a sub-directory, sub-sub directory etc.
-        # If a direct request for the target path succeeds we can infer the existence of the
-        # intermediate directories and avoid loading them until we need a full directory listing.
-        if prefix is not None:
-            if prefix not in self._directories:
-                # Request the required file or directory object data
-                try:
-                    data = self.connection.request_path(self.name+"/"+key)
-                except HDFStreamRequestError:
-                    raise KeyError(f"Invalid path: {key}")
-                # Create any intermediate directory objects and set them to lazy load
-                dir_obj = self
-                components = _path_components(key)
-                for component in components[:-1]:
-                    if component not in dir_obj._directories:
-                        subdir_obj = RemoteDirectory(self.connection.server, dir_obj.name+"/"+component,
-                                                     lazy_load=True, connection=self.connection, max_depth=self.max_depth,
-                                                     data_size_limit=self.data_size_limit)
-                        dir_obj._directories[component] = subdir_obj
-                        dir_obj = subdir_obj
-                # Create the target object, which might be a file or directory
-                if "directories" in data:
-                    # It's a directory
-                    dir_obj._directories[components[-1]] = RemoteDirectory(self.connection.server, dir_obj.name+"/"+components[-1], data=data,
-                                                                           lazy_load=False, connection=self.connection, max_depth=self.max_depth,
-                                                                           data_size_limit=self.data_size_limit)
-                else:
-                    # It's a file
-                    dir_obj._files[components[-1]] = RemoteFile(self.connection, dir_obj.name+"/"+components[-1],
-                                                                max_depth=self.max_depth, data_size_limit=self.data_size_limit,
-                                                                data=data)
-            return self._directories[prefix][name]
+        if prefix is None:
+            # Handle the case where the path is in this directory
+            if "directories" in data:
+                return self._ensure_subdir(name, data)
+            else:
+                return self._ensure_file(name, data)
+        else:
+            # Handle the case where the path is in a subdirectory
+            subdir = self._ensure_subdir(prefix)
+            return subdir._ensure_path_exists(name, data)
 
-        # If we don't have this directory entry already, request the directory listing
-        if name not in self._directories and name not in self._files:
-            self._load()
+    def __getitem__(self, key):
 
-        # Check if key refers to a subdirectory in this directory
-        if name in self._directories:
-            return self._directories[name]
+        # Ensure path is a string, and not a pathlib.Path, for example
+        key = str(key)
 
-        # Check if key refers to a file in this directory
-        if name in self._files:
-            return self._files[name]
+        # If the path has already been loaded, we can just return it
+        obj = self._lookup_path(key)
+        if obj is not None:
+            return obj
 
-        raise KeyError("Invalid path: "+key)
+        # Otherwise we need to make a request to the server
+        try:
+            data = self.connection.request_path(self.name+"/"+key)
+        except HDFStreamRequestError:
+            raise KeyError(f"Invalid path: {key}")
+
+        # If that worked, we can create the new object
+        return self._ensure_path_exists(key, data)
 
     def __len__(self):
         self._load()
