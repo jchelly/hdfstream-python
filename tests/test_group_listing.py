@@ -13,6 +13,8 @@ def test_root_group_listing(eagle_snap_file):
     expected_groups = set(["Config","Constants","HashTable","Header","Parameters",
                            "PartType0","PartType1","RuntimePars","Units"])
     assert set(root_group.keys()) == expected_groups
+    for name in expected_groups:
+        assert name in root_group
 
 @pytest.mark.vcr
 def test_parttype1_group_listing(eagle_snap_file):

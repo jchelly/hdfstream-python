@@ -109,11 +109,12 @@ class RemoteGroup(collections.abc.Mapping):
             if hasattr(arr, "shape") and len(arr.shape) == 0:
                 self._attrs[name] = arr[()]
 
-        # Create a lazy dict to request sub-groups on access if we didn't already download them
-        def load_subgroup(member_name):
-            path = (self.name + member_name) if (self.name=="/") else (self.name + "/" + member_name)
-            return RemoteGroup(self.connection, self.file_path, path, self.max_depth, self.data_size_limit, parent=self)
-        self._member_dict = _LazyDict(load_subgroup)
+        # Create a lazy dict to request member groups or datasets on access if we didn't already download them
+        def load_member(member_name):
+            member_path = (self.name + member_name) if (self.name=="/") else (self.name + "/" + member_name)
+            member_data = self.connection.request_object(self.file_path, member_path, self.data_size_limit, self.max_depth)
+            return _unpack_object(self.connection, self.file_path, member_path, member_data, self.max_depth, self.data_size_limit, self)
+        self._member_dict = _LazyDict(load_member)
 
         # Unpack any sub-objects which we have already downloaded
         if "members" in data:
@@ -257,6 +258,9 @@ class RemoteGroup(collections.abc.Mapping):
     def __iter__(self):
         for member in self._members:
             yield member
+
+    def __contains__(self, key):
+        return key in self._members
 
     def __repr__(self):
         if self.unpacked:
