@@ -259,9 +259,6 @@ class RemoteGroup(collections.abc.Mapping):
         for member in self._members:
             yield member
 
-    def __contains__(self, key):
-        return key in self._members
-
     def __repr__(self):
         if self.unpacked:
             return f'<Remote HDF5 group "{self.name}" ({len(self._members)} members)>'
