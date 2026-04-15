@@ -113,6 +113,9 @@ class RemoteFile(collections.abc.Mapping):
     def __repr__(self):
         return f'<Remote file "{self.file_path}">'
 
+    def __contains__(self, key):
+        return self.root.__contains__(key)
+
     def is_hdf5(self):
         """
         Return True if this is a HDF5 file, False otherwise

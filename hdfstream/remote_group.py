@@ -145,10 +145,13 @@ class RemoteGroup(collections.abc.Mapping):
         self._load()
         return self._member_dict
 
-    def get(self, key, getlink=False):
+    def get(self, key, getlink=False, getval=True):
         """
         Return the object at the specified absolute or relative path. Can be
         used to distinguish soft links if getlink=True.
+
+        If getval=False we don't return the object. This is used to implement
+        __contains__ without triggering lazy loading of objects.
 
         :param key: path to the object
         :type key: str
@@ -158,21 +161,24 @@ class RemoteGroup(collections.abc.Mapping):
         if getlink:
             return self._get_link(key)
         else:
-            return self._get_path(key)
+            return self._get_path(key, getval=getval)
 
-    def _get_path(self, key):
+    def _get_path(self, key, getval=True):
         """
         Return a member object identified by its name or path.
         Path can be relative or absolute.
         """
         if key == "/":
-            return self._root
+            if getval:
+                return self._root
+            else:
+                return None
         elif key.startswith("/"):
-            return self._root._get_path_relative(key.lstrip("/"))
+            return self._root._get_path_relative(key.lstrip("/"), getval=getval)
         else:
-            return self._get_path_relative(key)
+            return self._get_path_relative(key, getval=getval)
 
-    def _get_path_relative(self, key):
+    def _get_path_relative(self, key, getval=True):
         """
         Return a member object identified by its name or path.
         The path must be relative to this group.
@@ -189,16 +195,24 @@ class RemoteGroup(collections.abc.Mapping):
 
         # Handle the special cases of "." and ".." in a path
         if member_name == ".":
-            return self if rest_of_path is None else self[rest_of_path]
+            return self if rest_of_path is None else self.get(rest_of_path, getval=getval)
         elif member_name == "..":
-            return self._parent if rest_of_path is None else self._parent[rest_of_path]
+            return self._parent if rest_of_path is None else self._parent.get(rest_of_path, getval=getval)
+
+        # Try to avoid loading the object if getval is False. Here we return
+        # None without throwing a KeyError to indicate that the object exists.
+        if not getval and rest_of_path is None:
+            if member_name in self._members:
+                return None
+            else:
+                raise KeyError(f"Object {member_name} not found")
 
         # Locate the specifed sub group/dataset
         member_object = self._members[member_name]
 
         # If we've encountered a soft link, dereference it
         if isinstance(member_object, SoftLink):
-            member_object = self[member_object.path]
+            member_object = self.get(member_object.path, getval=getval)
 
         if rest_of_path is None:
             # No separator in key, so path specifies a member of this group
@@ -207,7 +221,7 @@ class RemoteGroup(collections.abc.Mapping):
             # Path is a member of a member group
             if isinstance(member_object, RemoteGroup):
                 if len(rest_of_path) > 0:
-                    return member_object[rest_of_path]
+                    return member_object.get(rest_of_path, getval=getval)
                 else:
                     # Handle case where path to group ends in a slash
                     return member_object
@@ -258,6 +272,14 @@ class RemoteGroup(collections.abc.Mapping):
     def __iter__(self):
         for member in self._members:
             yield member
+
+    def __contains__(self, key):
+        try:
+            self.get(key, getval=False)
+        except KeyError:
+            return False
+        else:
+            return True
 
     def __repr__(self):
         if self.unpacked:
