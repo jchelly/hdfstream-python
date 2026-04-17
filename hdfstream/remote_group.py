@@ -166,7 +166,7 @@ class RemoteGroup(collections.abc.Mapping):
         key = Path(key)
         if key == Path("/"):
             if getlink:
-                raise RuntimeError("Cannot get link type for root group")
+                raise KeyError("Cannot get link type for root group")
             elif getval:
                 return self._root
             else:

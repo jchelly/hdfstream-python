@@ -70,3 +70,8 @@ def test_group_dot(eagle_snap_file):
 def test_dot_group(eagle_snap_file):
     snap = eagle_snap_file()
     assert "./PartType0/./ElementAbundance" in snap
+
+@pytest.mark.vcr
+def test_not_a_group(eagle_snap_file):
+    snap = eagle_snap_file()
+    assert "PartType0/ElementAbundance/Carbon/Silicon/Helium" not in snap
