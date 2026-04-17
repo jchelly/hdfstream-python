@@ -2,7 +2,7 @@
 
 # Default maximum recursion depth when loading nested groups in a single
 # request. Deeper groups are only loaded when requested.
-max_depth_default = 0
+max_depth_default = 5
 
 # Default maximum size in bytes of dataset contents to load with the parent
 # group. Larger datasets are only loaded when sliced.

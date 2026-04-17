@@ -1,5 +1,6 @@
 #!/bin/env python
 
+from pathlib import PurePosixPath as Path
 import collections.abc
 from hdfstream.remote_dataset import RemoteDataset
 from hdfstream.defaults import *
@@ -145,60 +146,82 @@ class RemoteGroup(collections.abc.Mapping):
         self._load()
         return self._member_dict
 
-    def get(self, key, getlink=False):
+    def get(self, key, getlink=False, getval=True):
         """
-        Return the object at the specified absolute or relative path. Can be
-        used to distinguish soft links if getlink=True.
+        Return the object at the specified absolute or relative path.
+
+        Can be used to distinguish soft links if getlink=True.
+
+        If getval=False we don't return the object. This is used to implement
+        __contains__ without triggering lazy loading of objects. In this case
+        we either return none or raise a KeyError.
 
         :param key: path to the object
-        :type key: str
+        :type key: str or Path
         :param getlink: if True, returns a SoftLink or HardLink object
         :type getlink: bool
+        :param getlink: if False, just check if the obejct exists
+        :type getlink: bool
         """
-        if getlink:
-            return self._get_link(key)
+        key = Path(key)
+        if key == Path("/"):
+            if getlink:
+                raise KeyError("Cannot get link type for root group")
+            elif getval:
+                return self._root
+            else:
+                return None
+        elif key.is_absolute():
+            key = key.relative_to(Path("/"))
+            return self._root._get_path_relative(key, getval=getval, getlink=getlink)
         else:
-            return self._get_path(key)
+            return self._get_path_relative(key, getval=getval, getlink=getlink)
 
-    def _get_path(self, key):
-        """
-        Return a member object identified by its name or path.
-        Path can be relative or absolute.
-        """
-        if key == "/":
-            return self._root
-        elif key.startswith("/"):
-            return self._root._get_path_relative(key.lstrip("/"))
-        else:
-            return self._get_path_relative(key)
-
-    def _get_path_relative(self, key):
+    def _get_path_relative(self, key, getval=True, getlink=False):
         """
         Return a member object identified by its name or path.
         The path must be relative to this group.
         """
-        assert key.startswith("/")==False
+        # Should have a relative path
+        assert not key.is_absolute()
 
         # Split the path into first component (which identifies a member of this group) and rest of path
-        components = key.split("/", 1)
-        member_name = components[0]
-        if len(components) > 1:
-            rest_of_path = components[1].lstrip("/") # ignore any extra consecutive slashes
+        member_name = key.parts[0] if len(key.parts) > 0 else "."
+        if len(key.parts) > 1:
+            rest_of_path = Path(*key.parts[1:])
         else:
             rest_of_path = None
 
         # Handle the special cases of "." and ".." in a path
         if member_name == ".":
-            return self if rest_of_path is None else self[rest_of_path]
+            return self if rest_of_path is None else self.get(rest_of_path, getval=getval, getlink=getlink)
         elif member_name == "..":
-            return self._parent if rest_of_path is None else self._parent[rest_of_path]
+            return self._parent if rest_of_path is None else self._parent.get(rest_of_path, getval=getval, getlink=getlink)
+
+        # Handle the case where member_name is the final path entry
+        if rest_of_path is None:
+
+            # If getval==False, just check if the object exists
+            if not getval:
+                if member_name in self._members:
+                    return None
+                else:
+                    raise KeyError(f"Object {member_name} not found")
+
+            # If getlink==True, return the link type
+            if getlink:
+                member_object = self._members[member_name]
+                if isinstance(member_object, SoftLink):
+                    return member_object
+                else:
+                    return HardLink()
 
         # Locate the specifed sub group/dataset
         member_object = self._members[member_name]
 
-        # If we've encountered a soft link, dereference it
+        # Check if this is a soft link and dereference it if necessary
         if isinstance(member_object, SoftLink):
-            member_object = self[member_object.path]
+            member_object = self.get(member_object.path, getval=getval, getlink=getlink)
 
         if rest_of_path is None:
             # No separator in key, so path specifies a member of this group
@@ -206,48 +229,9 @@ class RemoteGroup(collections.abc.Mapping):
         else:
             # Path is a member of a member group
             if isinstance(member_object, RemoteGroup):
-                if len(rest_of_path) > 0:
-                    return member_object[rest_of_path]
-                else:
-                    # Handle case where path to group ends in a slash
-                    return member_object
+                return member_object.get(rest_of_path, getval=getval, getlink=getlink)
             else:
-                raise KeyError(f"Path component {components[0]} is not a group")
-
-    def _get_link(self, key):
-        """
-        Determine the link type of the specified absolute or relative path
-        """
-        if key == "/":
-            raise RuntimeError("Can't get link type for the root group")
-        elif key.startswith("/"):
-            return self._root._get_link_relative(key.lstrip("/"))
-        else:
-            return self._get_link_relative(key)
-
-    def _get_link_relative(self, key):
-        """
-        Determine the link type of the specified relative path
-        """
-        assert key.startswith("/")==False
-        key = key.rstrip("/")
-
-        # Determine the group where the link is located
-        fields = key.rsplit("/", 1)
-        if len(fields) == 1:
-            # No separator, so key is the name of a member of this group
-            group = self
-            member = self._members[fields[0]]
-        else:
-            # Have a separator, so key is something in a subgroup
-            group = self[fields[0]]
-            member = group._members[fields[1]]
-
-        # Return a link object
-        if isinstance(member, SoftLink):
-            return member
-        else:
-            return HardLink()
+                raise KeyError(f"Path component {rest_of_path.parts[0]} is not a group")
 
     def __getitem__(self, key):
         return self.get(key)
@@ -260,7 +244,12 @@ class RemoteGroup(collections.abc.Mapping):
             yield member
 
     def __contains__(self, key):
-        return key in self._members
+        try:
+            self.get(key, getval=False)
+        except KeyError:
+            return False
+        else:
+            return True
 
     def __repr__(self):
         if self.unpacked:

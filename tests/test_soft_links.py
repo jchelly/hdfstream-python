@@ -50,3 +50,8 @@ def test_identify_soft_link_dot(swift_snap_file):
     link = swift_snap_file()["PartType1"].get(".././DMParticles", getlink=True)
     assert isinstance(link, SoftLink)
     assert link.path == "/PartType1"
+
+@pytest.mark.vcr
+def test_get_root_link(swift_snap_file):
+    with pytest.raises(KeyError):
+        link = swift_snap_file().get("/", getlink=True)
