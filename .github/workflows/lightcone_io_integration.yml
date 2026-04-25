@@ -45,7 +45,7 @@ jobs:
       with:
         data-dir: ./downstream/lightcone_io/tests/data
         virtual-prefix: tests/data
-        image: ghcr.io/jchelly/hdfstream-api:0.0.8
+        image: ghcr.io/jchelly/hdfstream-api:0.0.9
 
     - name: Test lightcone_io with pytest
       working-directory: ./downstream/lightcone_io
