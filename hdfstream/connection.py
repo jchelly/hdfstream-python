@@ -52,22 +52,24 @@ def raise_for_status(response):
     there is one.
     """
     if not response.ok:
+        # Catch case of wrong password
         if response.status_code == 401:
-            # Catch case of wrong password
             raise HDFStreamRequestError("Not authorized. Incorrect username or password?")
-        try:
-            # Enable content decoding if necessary
+        # Catch case of exceeding the rate limit
+        if response.status_code == 429:
+            raise HDFStreamRequestError("Request rate limit exceeded.")
+        # Decode any error message from the server, if this is a msgpack response
+        message = None
+        if response.headers.get('Content-Type') == "application/x-msgpack":
             response.raw.decode_content = ("Content-Encoding" in response.headers)
-            # Extract msgpack encoded error string from response.
-            data = msgpack.unpack(response.raw)
-            message = data["error"]
-        except Exception:
+            message = msgpack.unpack(response.raw)["error"]
+        if message is not None:
+            # We have an error message from the server
+            raise HDFStreamRequestError(message)
+        else:
             # If we don't have a message from the server, let the requests
             # module generate an exception
             response.raise_for_status()
-        else:
-            # Raise an exception using the error message
-            raise HDFStreamRequestError(message)
 
 
 def convert_array(obj):
