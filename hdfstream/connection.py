@@ -19,6 +19,13 @@ from hdfstream.decoding import decode_response
 from hdfstream.config import get_config
 
 
+# Use fixed error messages for certain http errors
+_messages = {
+    401 : "Not authorized. Incorrect user name or password?",
+    429 : "Request rate limit exceeded",
+}
+
+
 _verify_cert = True
 def verify_cert(enable):
     """
@@ -52,12 +59,8 @@ def raise_for_status(response):
     there is one.
     """
     if not response.ok:
-        # Catch case of wrong password
-        if response.status_code == 401:
-            raise HDFStreamRequestError("Not authorized. Incorrect username or password?")
-        # Catch case of exceeding the rate limit
-        if response.status_code == 429:
-            raise HDFStreamRequestError("Request rate limit exceeded.")
+        if response.status_code in _messages:
+            raise HDFStreamRequestError(_messages[response.status_code])
         # Decode any error message from the server, if this is a msgpack response
         message = None
         if response.headers.get('Content-Type') == "application/x-msgpack":
